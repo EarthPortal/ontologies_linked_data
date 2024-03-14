@@ -6,6 +6,9 @@ require 'ontologies_linked_data/models/group'
 require 'ontologies_linked_data/models/metric'
 require 'ontologies_linked_data/models/category'
 require 'ontologies_linked_data/models/project'
+require 'ontologies_linked_data/models/skos/scheme'
+require 'ontologies_linked_data/models/skos/collection'
+require 'ontologies_linked_data/models/skos/skosxl'
 require 'ontologies_linked_data/models/notes/note'
 require 'ontologies_linked_data/purl/purl_client'
 
@@ -14,6 +17,7 @@ module LinkedData
     class Ontology < LinkedData::Models::Base
       class ParsedSubmissionError < StandardError; end
       class OntologyAnalyticsError < StandardError; end
+      include LinkedData::Concerns::Analytics
 
       ONTOLOGY_ANALYTICS_REDIS_FIELD = "ontology_analytics"
       ONTOLOGY_RANK_REDIS_FIELD = "ontology_rank"
@@ -24,8 +28,8 @@ module LinkedData
       attribute :acronym, namespace: :omv,
         enforce: [:unique, :existence, lambda { |inst,attr| validate_acronym(inst,attr) } ]
       attribute :name, :namespace => :omv, enforce: [:unique, :existence]
-      attribute :submissions,
-                  inverse: { on: :ontology_submission, attribute: :ontology }
+      attribute :submissions, inverse: { on: :ontology_submission, attribute: :ontology },
+                metadataMappings: ["dct:hasVersion", "pav:hasCurrentVersion", "pav:hasVersion", "prov:generalizationOf", "adms:next"]
       attribute :projects,
                   inverse: { on: :project, attribute: :ontologyUsed }
       attribute :notes,
@@ -36,10 +40,10 @@ module LinkedData
                   inverse: { on: :provisional_class, attribute: :ontology }
       attribute :subscriptions,
                   inverse: { on: :subscription, attribute: :ontology}
-      attribute :administeredBy, enforce: [:existence, :user, :list]
+      attribute :administeredBy, enforce: [:existence, :user, :list], metadataMappings: ["oboInOwl:savedBy", "oboInOwl:saved-by"]
       attribute :group, enforce: [:list, :group]
 
-      attribute :viewingRestriction, :default => lambda {|x| "public"}
+      attribute :viewingRestriction, :default => lambda {|x| "public"}, metadataMappings: ["mod:accessibility"]
       attribute :doNotUpdate, enforce: [:boolean]
       attribute :flat, enforce: [:boolean]
       attribute :hasDomain, namespace: :omv, enforce: [:list, :category]
@@ -47,18 +51,21 @@ module LinkedData
 
       attribute :acl, enforce: [:list, :user]
 
-      attribute :viewOf, enforce: [:ontology]
+      attribute :viewOf, enforce: [:ontology], onUpdate: :update_submissions_has_part
       attribute :views, :inverse => { on: :ontology, attribute: :viewOf }
       attribute :ontologyType, enforce: [:ontology_type], default: lambda { |record| LinkedData::Models::OntologyType.find("ONTOLOGY").include(:code).first }
 
       # Hypermedia settings
-      serialize_default :administeredBy, :acronym, :name, :summaryOnly, :flat, :ontologyType
+      serialize_default :administeredBy, :acronym, :name, :summaryOnly, :flat, :ontologyType, :group, :hasDomain, :viewingRestriction, :viewOf, :views
       links_load :acronym
       link_to LinkedData::Hypermedia::Link.new("submissions", lambda {|s| "ontologies/#{s.acronym}/submissions"}, LinkedData::Models::OntologySubmission.uri_type),
               LinkedData::Hypermedia::Link.new("properties", lambda {|s| "ontologies/#{s.acronym}/properties"}, "#{Goo.namespaces[:metadata].to_s}Property"),
               LinkedData::Hypermedia::Link.new("classes", lambda {|s| "ontologies/#{s.acronym}/classes"}, LinkedData::Models::Class.uri_type),
               LinkedData::Hypermedia::Link.new("single_class", lambda {|s| "ontologies/#{s.acronym}/classes/{class_id}"}, LinkedData::Models::Class.uri_type),
               LinkedData::Hypermedia::Link.new("roots", lambda {|s| "ontologies/#{s.acronym}/classes/roots"}, LinkedData::Models::Class.uri_type),
+              LinkedData::Hypermedia::Link.new("schemes", lambda {|s| "ontologies/#{s.acronym}/schemes"}, LinkedData::Models::SKOS::Scheme.uri_type),
+              LinkedData::Hypermedia::Link.new("collections", lambda {|s| "ontologies/#{s.acronym}/collections"}, LinkedData::Models::SKOS::Collection.uri_type),
+              LinkedData::Hypermedia::Link.new("xl_labels", lambda {|s| "ontologies/#{s.acronym}/skos_xl_labels"}, LinkedData::Models::SKOS::Label.uri_type),
               LinkedData::Hypermedia::Link.new("instances", lambda {|s| "ontologies/#{s.acronym}/instances"}, Goo.vocabulary["Instance"]),
               LinkedData::Hypermedia::Link.new("metrics", lambda {|s| "ontologies/#{s.acronym}/metrics"}, LinkedData::Models::Metric.type_uri),
               LinkedData::Hypermedia::Link.new("reviews", lambda {|s| "ontologies/#{s.acronym}/reviews"}, LinkedData::Models::Review.uri_type),
@@ -106,6 +113,53 @@ module LinkedData
         end
 
         return errors.flatten
+      end
+
+      def update_submissions_has_part(inst, attr)
+        inst.bring :viewOf if inst.bring?(:viewOf)
+
+        target_ontology = inst.viewOf
+
+        if target_ontology.nil?
+          previous_value = inst.previous_values ? inst.previous_values[attr] : nil
+          return if previous_value.nil?
+
+          action = :remove
+          target_ontology = previous_value
+        else
+          action = :append
+        end
+
+        sub = target_ontology.latest_submission || target_ontology.bring(:submissions) && target_ontology.submissions.last
+
+        return if sub.nil?
+
+        sub.bring :hasPart if sub.bring?(:hasPart)
+
+        parts = sub.hasPart.dup || []
+        changed = false
+        if action.eql?(:append)
+          unless parts.include?(self.id)
+            changed = true
+            parts << self.id
+          end
+        elsif action.eql?(:remove)
+          if parts.include?(self.id)
+            changed = true
+            parts.delete(self.id)
+            sub.class.model_settings[:attributes][:hasPart][:enforce].delete(:include_ontology_views) #disable validator
+          end
+        end
+
+        return unless changed
+
+        sub.bring_remaining
+        sub.hasPart = parts
+        sub.save if sub.valid?
+
+        return unless changed && action.eql?(:remove)
+
+        sub.class.model_settings[:attributes][:hasPart][:enforce].append(:include_ontology_views)
       end
 
       def latest_submission(options = {})
@@ -281,17 +335,8 @@ module LinkedData
 
       # A static method for retrieving Analytics for a combination of ontologies, year, month
       def self.analytics(year=nil, month=nil, acronyms=nil)
-        analytics = self.load_analytics_data
-
-        unless analytics.empty?
-          analytics.delete_if { |acronym, _| !acronyms.include? acronym } unless acronyms.nil?
-          analytics.values.each do |ont_analytics|
-            ont_analytics.delete_if { |key, _| key != year } unless year.nil?
-            ont_analytics.each { |_, val| val.delete_if { |key, __| key != month } } unless month.nil?
-          end
-          # sort results by the highest traffic values
-          analytics = Hash[analytics.sort_by {|_, v| v[year][month]}.reverse] if year && month
-        end
+        analytics = retrieve_analytics(year, month)
+        analytics.delete_if { |acronym, _| !acronyms.include? acronym } unless acronyms.nil?
         analytics
       end
 
@@ -308,20 +353,12 @@ module LinkedData
         ranking
       end
 
-      def self.load_analytics_data
-        self.load_data(ONTOLOGY_ANALYTICS_REDIS_FIELD)
+      def self.analytics_redis_key
+        ONTOLOGY_ANALYTICS_REDIS_FIELD
       end
 
       def self.load_ranking_data
         self.load_data(ONTOLOGY_RANK_REDIS_FIELD)
-      end
-
-      def self.load_data(field_name)
-        @@redis ||= Redis.new(:host => LinkedData.settings.ontology_analytics_redis_host,
-                              :port => LinkedData.settings.ontology_analytics_redis_port,
-                              :timeout => 30)
-        raw_data = @@redis.get(field_name)
-        return raw_data.nil? ? Hash.new : Marshal.load(raw_data)
       end
 
       ##
