@@ -131,7 +131,7 @@ module LinkedData
           http_session.use_ssl = (uri.scheme == 'https')
           http_session.start do |http|
             http.read_timeout = 1800
-            http.request_get(uri.request_uri, {'Accept-Encoding' => 'gzip'}) do |res|
+            http.request_get(uri.request_uri, {'Accept-Encoding' => 'gzip', 'Accept' => 'text/turtle,application/rdf+xml,application/xhtml+xml,application/xml,*/*'}) do |res|
               if res.kind_of?(Net::HTTPRedirection)
                 new_loc = res['location']
                 if new_loc.match(/^(http:\/\/|https:\/\/)/)
