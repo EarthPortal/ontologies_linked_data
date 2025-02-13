@@ -46,31 +46,6 @@ module LinkedData
       module Validators
         include ValidatorsHelpers
 
-        def enforce_agent_type(values, type, attr)
-          Array(values).each do |aff|
-            error = ["is_#{type}", "`#{attr}` must contain only agents of type #{type.capitalize}"]
-
-            return error unless aff.is_a?(LinkedData::Models::Agent)
-
-            aff.bring(:agentType) if aff.bring?(:agentType)
-            return error unless aff.agentType&.eql?(type)
-          end
-          []
-        end
-
-        def is_organization(inst, attr)
-          inst.bring(attr) if inst.bring?(attr)
-          affiliations = inst.send(attr)
-
-          enforce_agent_type(affiliations, 'organization', attr)
-        end
-
-        def is_person(inst, attr)
-          inst.bring(attr) if inst.bring?(attr)
-          persons = inst.send(attr)
-          enforce_agent_type(persons, 'person', attr)
-        end
-
         def lexvo_language(inst, attr)
           values = Array(attr_value(inst, attr))
 
@@ -276,6 +251,11 @@ module LinkedData
           ontology_domain_list
         end
 
+        def default_sparql_endpoint(sub)
+          url = LinkedData.settings.sparql_endpoint_url || ''
+
+          url.strip.blank? ? [] :  [RDF::URI.new(url)]
+        end
         def open_search_default(sub)
           RDF::URI.new("#{LinkedData.settings.rest_url_prefix}search?ontologies=#{sub.ontology.acronym}&q=")
         end
@@ -285,7 +265,7 @@ module LinkedData
         end
 
         def data_dump_default(sub)
-          RDF::URI.new("#{LinkedData.settings.rest_url_prefix}ontologies/#{sub.ontology.acronym}/download?download_format=rdf")
+          RDF::URI.new("#{LinkedData.settings.rest_url_prefix}ontologies/#{sub.ontology.acronym}/download")
         end
 
         def csv_dump_default(sub)
@@ -311,4 +291,3 @@ module LinkedData
     end
   end
 end
-

@@ -43,7 +43,7 @@ class TestOntologySubmission < LinkedData::TestOntologyCommon
     roots.each do |root|
       q_broader = <<-eos
 SELECT ?children WHERE {
-  ?children #{RDF::SKOS[:broader].to_ntriples} #{root.id.to_ntriples} }
+  ?children #{RDF::Vocab::SKOS[:broader].to_ntriples} #{root.id.to_ntriples} }
       eos
       children_query = []
       Goo.sparql_query_client.query(q_broader).each_solution do |sol|
@@ -92,7 +92,7 @@ SELECT ?children WHERE {
     roots.each do |r|
       selected_schemes = r.inScheme.select { |s| concept_schemes.include?(s) }
       refute_empty selected_schemes
-      assert_equal r.isInActiveScheme, selected_schemes
+      assert_equal r.isInActiveScheme.sort, selected_schemes.sort
       assert_equal r.isInActiveCollection, []
     end
     roots = roots.map { |r| r.id.to_s } unless roots.nil?
@@ -127,9 +127,32 @@ SELECT ?children WHERE {
     assert_equal 4, roots.size
 
     roots.each do |r|
-      selected_collections = r.memberOf.select { |c| concept_collection.include?(c)}
+      selected_collections = r.memberOf.select { |c| concept_collection.include?(c) }
       assert_equal r.isInActiveCollection, selected_collections unless selected_collections.empty?
     end
   end
-end
 
+  def test_children_of_scheme
+    submission_parse('SKOS-TEST-2',
+                     'SKOS TEST Bla 2',
+                     './test/data/ontology_files/functraits.ttl', 1,
+                     process_rdf: true, index_search: false,
+                     run_metrics: false, reasoning: true)
+
+    sub = LinkedData::Models::OntologySubmission.where(ontology: [acronym: 'SKOS-TEST-2'],
+                                                       submissionId: 1)
+                                                .first
+    sub.hasOntologyLanguage = LinkedData::Models::OntologyFormat.find("SKOS").first
+
+    concept_schemes = ['https://kos.lifewatch.eu/thesauri/functraits/conceptScheme_45c75a9']
+    cls_uri = "https://kos.lifewatch.eu/thesauri/functraits/c_621df9ab"
+    cls = LinkedData::Models::Class.find(cls_uri).in(sub).first
+
+    roots = sub.children(cls)
+    refute_empty roots
+
+    roots = sub.children(cls, concept_schemes: concept_schemes, size: 10)
+    assert_equal 1, roots.size, 'Children should be filtered by the scheme in this case only one'
+  end
+
+end

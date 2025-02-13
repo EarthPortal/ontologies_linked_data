@@ -32,13 +32,14 @@ module LinkedData
       attribute :subscription, enforce: [:list, :subscription]
       attribute :customOntology, enforce: [:list, :ontology]
       attribute :resetToken
+      attribute :resetTokenExpireTime
       attribute :provisionalClasses, inverse: { on: :provisional_class, attribute: :creator }
 
       # Hypermedia settings
       embed :subscription
       embed_values :role => [:role]
       serialize_default :username, :email, :role, :apikey
-      serialize_never :passwordHash, :show_apikey, :resetToken
+      serialize_never :passwordHash, :show_apikey, :resetToken, :resetTokenExpireTime
       serialize_filter lambda {|inst| show_apikey?(inst)}
 
       # Cache
@@ -55,6 +56,10 @@ module LinkedData
         else
           return attributes - [:apikey]
         end
+      end
+
+      def embedded_doc
+        "#{self.firstName} #{self.lastName} #{self.username}"
       end
 
       def initialize(attributes = {})
@@ -79,10 +84,11 @@ module LinkedData
           OntologySubmission.cache_collection_invalidate
         end
 
-        if args.include?(:send_notifications) && args[:send_notifications]
+        if args.first&.dig(:send_notifications)
           begin
-            LinkedData::Utils::Notifications.new_user(user)
-          rescue Exception => e
+            LinkedData::Utils::Notifications.new_user(self)
+          rescue StandardError => e
+            puts "Error on user creation notification: #{e.message}"
           end
         end
 

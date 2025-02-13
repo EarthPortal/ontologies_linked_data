@@ -26,8 +26,8 @@ module LinkedData
 
       model :ontology, :name_with => :acronym
       attribute :acronym, namespace: :omv,
-        enforce: [:unique, :existence, lambda { |inst,attr| validate_acronym(inst,attr) } ]
-      attribute :name, :namespace => :omv, enforce: [:unique, :existence]
+        enforce: [:unique, :existence, lambda { |inst,attr| validate_acronym(inst,attr) } ], fuzzy_search: true
+      attribute :name, :namespace => :omv, enforce: [:unique, :existence], fuzzy_search: true
       attribute :submissions, inverse: { on: :ontology_submission, attribute: :ontology },
                 metadataMappings: ["dct:hasVersion", "pav:hasCurrentVersion", "pav:hasVersion", "prov:generalizationOf", "adms:next"]
       attribute :projects,
@@ -77,6 +77,8 @@ module LinkedData
               LinkedData::Hypermedia::Link.new("download", lambda {|s| "ontologies/#{s.acronym}/download"}, self.type_uri),
               LinkedData::Hypermedia::Link.new("views", lambda {|s| "ontologies/#{s.acronym}/views"}, self.type_uri),
               LinkedData::Hypermedia::Link.new("analytics", lambda {|s| "ontologies/#{s.acronym}/analytics"}, "#{Goo.namespaces[:metadata].to_s}Analytics"),
+              LinkedData::Hypermedia::Link.new("agents", lambda {|s| "ontologies/#{s.acronym}/agents"}, LinkedData::Models::Agent.uri_type),
+              LinkedData::Hypermedia::Link.new("mappings", lambda {|s| "ontologies/#{s.acronym}/mappings"}, LinkedData::Models::Mapping.type_uri),
               LinkedData::Hypermedia::Link.new("ui", lambda {|s| "http://#{LinkedData.settings.ui_host}/ontologies/#{s.acronym}"}, self.uri_type)
 
       # Access control
@@ -87,6 +89,10 @@ module LinkedData
 
       # Cache
       cache_timeout 3600
+
+      enable_indexing(:ontology_metadata)
+
+      after_save :index_latest_submission
 
       def self.validate_acronym(inst, attr)
         inst.bring(attr) if inst.bring?(attr)
@@ -300,7 +306,7 @@ module LinkedData
         LinkedData::Models::OntologyProperty.sort_properties(all_roots)
       end
 
-      def property(prop_id, sub=nil)
+      def property(prop_id, sub=nil, display_all_attributes: false)
         p = nil
         sub ||= latest_submission(status: [:rdf])
         self.bring(:acronym) if self.bring?(:acronym)
@@ -308,9 +314,10 @@ module LinkedData
         prop_classes = [LinkedData::Models::ObjectProperty, LinkedData::Models::DatatypeProperty, LinkedData::Models::AnnotationProperty]
 
         prop_classes.each do |c|
-          p = c.find(prop_id).in(sub).include(:label, :definition, :parents).first
+          p = c.find(prop_id).in(sub).include(:label, :definition, :parents,:domain, :range).first
 
           unless p.nil?
+            p.bring(:unmapped) if display_all_attributes
             p.load_has_children
             parents = p.parents.nil? ? [] : p.parents.dup
             c.in(sub).models(parents).include(:label, :definition).all()
@@ -420,9 +427,8 @@ module LinkedData
         end
 
         # remove index entries
-        unindex(index_commit)
-        unindex_properties(index_commit)
-
+        unindex_all_data(index_commit)
+       
         # delete all files
         ontology_dir = File.join(LinkedData.settings.repository_folder, self.acronym.to_s)
         FileUtils.rm_rf(ontology_dir)
@@ -443,19 +449,43 @@ module LinkedData
         self
       end
 
-      def unindex(commit=true)
+      def index_latest_submission
+        last_s = latest_submission(status: :any)
+        return if last_s.nil?
+
+        last_s.ontology = self
+        last_s.index_update([:ontology])
+      end
+
+      def unindex_all_data(commit=true)
         unindex_by_acronym(commit)
+        unindex_properties(commit)
+      end
+
+      def embedded_doc
+        self.administeredBy.map{|x| x.bring_remaining}
+        doc = indexable_object
+        doc.delete(:id)
+        doc.delete(:resource_id)
+        doc.delete('ontology_viewOf_resource_model_t')
+        doc['ontology_viewOf_t'] = self.viewOf.id.to_s  unless self.viewOf.nil?
+        doc[:resource_model_t] = doc.delete(:resource_model)
+        doc
       end
 
       def unindex_properties(commit=true)
-        unindex_by_acronym(commit, :property)
-      end
-
-      def unindex_by_acronym(commit=true, connection_name=:main)
         self.bring(:acronym) if self.bring?(:acronym)
         query = "submissionAcronym:#{acronym}"
-        Ontology.unindexByQuery(query, connection_name)
-        Ontology.indexCommit(nil, connection_name) if commit
+        OntologyProperty.unindexByQuery(query)
+        OntologyProperty.indexCommit(nil) if commit
+      end
+
+      def unindex_by_acronym(commit=true)
+        self.bring(:acronym) if self.bring?(:acronym)
+        query = "submissionAcronym:#{acronym}"
+        Class.unindexByQuery(query)
+        Class.indexCommit(nil) if commit
+        #OntologySubmission.clear_indexed_content(acronym)
       end
 
       def restricted?

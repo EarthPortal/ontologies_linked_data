@@ -25,8 +25,8 @@ module LinkedData
     @settings.goo_path_query                ||= '/sparql/'
     @settings.goo_path_data                 ||= '/data/'
     @settings.goo_path_update               ||= '/update/'
-    @settings.search_server_url             ||= 'http://localhost:8983/solr/term_search_core1'
-    @settings.property_search_server_url    ||= 'http://localhost:8983/solr/prop_search_core1'
+    @settings.search_server_url             ||= 'http://localhost:8983/solr'
+    @settings.property_search_server_url    ||= 'http://localhost:8983/solr'
     @settings.repository_folder             ||= './test/data/ontology_files/repo'
     @settings.rest_url_prefix                ||= DEFAULT_PREFIX
     @settings.enable_security               ||= false
@@ -42,9 +42,16 @@ module LinkedData
     # ###
 
     @settings.ui_name                       ||= 'Bioportal'
+    @settings.title                         ||= ''
+    @settings.description                   ||= ''
+    @settings.color                         ||= ''
+    @settings.logo                          ||= ''
+    @settings.fundedBy                      ||= {}
+    @settings.federated_portals             ||= {}
+
     @settings.ui_host                       ||= 'bioportal.bioontology.org'
-    @settings.replace_url_prefix             ||= false
-    @settings.id_url_prefix                  ||= DEFAULT_PREFIX
+    @settings.replace_url_prefix            ||= false
+    @settings.id_url_prefix                 ||= DEFAULT_PREFIX
     @settings.queries_debug                 ||= false
     @settings.enable_monitoring             ||= false
     @settings.cube_host                     ||= 'localhost'
