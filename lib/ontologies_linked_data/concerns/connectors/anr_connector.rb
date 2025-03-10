@@ -2,72 +2,51 @@ require_relative 'base_connector'
 
 module Connectors
   class AnrConnector < BaseConnector
-    DATASET_MAPPINGS = {
-      'ods_france2030-projets' => {
-        acronym: 'acronyme',
-        name: 'action_nom',
-        description: 'resume',
-        homepage: 'lien',
-        grant_number: 'eotp_projet',
-        start_date: 'date_debut_projet',
-        end_date: 'date_fin',
-        region: 'region_du_projet',
-        year: 'annee_de_contractualisation'
-      },
-      'aapg-projets' => {
-        acronym: 'acronyme_projet',
-        name: 'intitule_complet_du_comite',
-        description: nil,
-        homepage: 'lien',
-        grant_number: 'code_projet_anr',
-        start_date: nil,
-        end_date: nil,
-        region: 'libelle_de_region_tutelle_hebergeante',
-        year: 'edition'
-      }
-    }.freeze
-
-    ANR_FUNDER = {
-      type: 'Agent',
-      name: "Agence Nationale de la Recherche",
-      homepage: "https://anr.fr"
-    }.freeze
-
     private
+    
     def build_url
       dataset_id = params[:dataset_id]
       raise ConnectorError, "Dataset ID is required" unless dataset_id
-      "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/#{dataset_id}/records"
+      base_url = LinkedData.settings.anr_connector[:base_url]
+      "#{base_url}/#{dataset_id}/records"
     end
 
     def build_params(params)
       raise ConnectorError, "Query parameter is required" unless params[:query]
+
+      # validate query length
+      query = params[:query].to_s.strip
+      min_query_length = LinkedData.settings.anr_connector[:min_query_length]
+      raise ConnectorError, "Query must be at least #{min_query_length} characters long" if query.length < min_query_length
+      
       {
-        limit: params[:limit] || 20,
+        limit: params[:limit] || LinkedData.settings.anr_connector[:default_limit],
         where: build_query_conditions(params)
       }
     end
 
     def build_query_conditions(params)
-      mapping = get_dataset_mapping      
+      mapping = get_dataset_mapping
+      config = LinkedData.settings.anr_connector
+      query_format = config[:query_format] || "LIKE '*%s*'"
       if params[:query]
         query_term = params[:query]
-        acronym_field = mapping[:acronym]
-        grant_field = mapping[:grant_number]
-        "(#{acronym_field} LIKE '*#{query_term}*' OR #{grant_field} LIKE '*#{query_term}*')"
+        search_fields = config[:search_fields] || [:acronym, :grant_number]
+        field_conditions = search_fields.map do |field_key|
+          field_name = mapping[field_key]
+          next unless field_name
+          "#{field_name} #{query_format.gsub('%s', query_term)}"
+        end.compact
+        
+        "(#{field_conditions.join(' OR ')})"
       else
         raise ConnectorError, "Query parameter is required"
       end
     end
     
-    def map_response(data)
-      raise ConnectorError, "No projects found matching search criteria" if data['results'].empty?      
-      mapping = get_dataset_mapping
-      data['results'].map { |result| build_project_data(result, mapping) }     
-    end
-
     def get_dataset_mapping
-      mapping = DATASET_MAPPINGS[params[:dataset_id]]
+      dataset_mappings = LinkedData.settings.anr_dataset_mappings
+      mapping = dataset_mappings[params[:dataset_id]]
       raise ConnectorError, "Unsupported dataset: #{params[:dataset_id]}" unless mapping
       mapping
     end
@@ -81,35 +60,73 @@ module Connectors
     end
 
     def build_project_data(result, mapping)
-      {
-        source: 'ANR',
-        type: 'FundedProject',
-        acronym: result[mapping[:acronym]],
-        name: result[mapping[:name]],
-        description: get_description(result, mapping),
-        homepage: result[mapping[:homepage]],
-        ontologyUsed: [],
-        creator: nil,
-        created: DateTime.now,
-        updated: DateTime.now,
-        keywords: [],
-        contact: nil,
-        institution: nil,
-        coordinator: nil,
-        logo: nil,
-        grant_number: result[mapping[:grant_number]],
-        start_date: result[mapping[:start_date]],
-        end_date: result[mapping[:end_date]],
-        funder: ANR_FUNDER
-      }
+      project = LinkedData::Models::Project.new
+      
+      project.source = LinkedData.settings.anr_connector[:source] || 'ANR'
+      project.type = LinkedData.settings.anr_connector[:project_type] || 'FundedProject'
+      project.acronym = result[mapping[:acronym]]
+      project.name = result[mapping[:name]]
+      project.description = get_description(result, mapping)
+      project.homePage = result[mapping[:homepage]]
+      
+      project.created = DateTime.now
+      project.updated = DateTime.now
+      
+      if mapping[:start_date] && result[mapping[:start_date]]
+        begin
+          project.start_date = DateTime.parse(result[mapping[:start_date]])
+        rescue ArgumentError
+          # Invalid date format
+        end
+      end
+      
+      if mapping[:end_date] && result[mapping[:end_date]]
+        begin
+          project.end_date = DateTime.parse(result[mapping[:end_date]])
+        rescue ArgumentError
+          # Invalid date format
+        end
+      end
+      
+      project.grant_number = result[mapping[:grant_number]]
+      
+      funder_config = LinkedData.settings.anr_connector[:funder]
+      if funder_config
+        funder = LinkedData::Models::Agent.new
+        funder.agentType = funder_config[:agentType]  
+        funder.name = funder_config[:name]
+        funder.homepage = funder_config[:homepage] if funder_config[:homepage]
+        
+        project.funder = funder
+      end
+      
+      project.ontologyUsed = []
+      
+      project
+    end
+
+    def map_response(data)
+      raise ConnectorError, "No projects found matching search criteria" if data['results'].empty?      
+      mapping = get_dataset_mapping
+      data['results'].map { |result| build_project_data(result, mapping) }
     end
 
     def get_description(result, mapping)
-      if params[:dataset_id] == 'ods_france2030-projets'
-        result[mapping[:description]] || result['action_nom_long']
-      else
-        nil
+      # Try the primary description field
+      description = result[mapping[:description]] if mapping[:description]
+      
+      # Try fallbacks if primary is nil
+      if description.nil?
+        fallbacks = LinkedData.settings.anr_connector[:description_fallbacks] || {}
+        dataset_fallbacks = fallbacks[params[:dataset_id]] || []
+        
+        dataset_fallbacks.each do |fallback_field|
+          description = result[fallback_field]
+          break if description
+        end
       end
+      
+      description
     end
   end
 end

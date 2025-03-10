@@ -103,6 +103,80 @@ module LinkedData
     # number of threads to use when indexing a single ontology for search
     @settings.indexing_num_threads          ||= 1
 
+
+
+    # Global connector configuration
+    @settings.connectors ||= {
+      available_sources: {
+        'ANR' => Connectors::AnrConnector,
+        'CORDIS' => Connectors::CordisConnector
+      }
+    }
+    @settings.project_sources ||= ["ANR", "CORDIS"]
+    @settings.project_types ||= ["FundedProject", "NonFundedProject"]
+
+    # CORDIS Connector Configuration
+    @settings.cordis_connector ||= {
+      base_url: "https://cordis.europa.eu/project/id",
+      format: "xml",
+      source: 'CORDIS',
+      project_type: 'FundedProject',
+      coordinator_xpath: ".//organization[@type='coordinator']",
+      coordinator_name_element: 'legalName',
+      coordinator_url_element: 'address/url',
+      project_url_xpath: ".//webLink[@represents='project']/physUrl",
+      funder: {
+        name: "European Commission",
+        homepage: "https://ec.europa.eu"
+      }
+    }
+
+    # ANR Connector Configuration
+    @settings.anr_connector ||= {
+      base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets",
+      default_limit: 20,
+      min_query_length: 3,
+      source: 'ANR',
+      project_type: 'FundedProject',
+      query_format: "LIKE '*%s*'", 
+      search_fields: [:acronym, :grant_number, :name], 
+      description_fallbacks: {
+        'ods_france2030-projets' => ['action_nom_long', 'description'],
+        'aapg-projets' => ['objectifs', 'abstract'] 
+      },
+      funder: {
+        agentType: 'organization',
+        name: "Agence Nationale de la Recherche",
+        homepage: "https://anr.fr"
+      }
+    }
+
+    # ANR Connector Dataset Mappings
+    @settings.anr_dataset_mappings          ||= {
+      'ods_france2030-projets' => {
+        acronym: 'acronyme',
+        name: 'action_nom',
+        description: 'resume',
+        homepage: 'lien',
+        grant_number: 'eotp_projet',
+        start_date: 'date_debut_projet',
+        end_date: 'date_fin',
+        region: 'region_du_projet',
+        year: 'annee_de_contractualisation'
+      },
+      'aapg-projets' => {
+        acronym: 'acronyme_projet',
+        name: 'intitule_complet_du_comite',
+        description: nil,
+        homepage: 'lien',
+        grant_number: 'code_projet_anr',
+        start_date: nil,
+        end_date: nil,
+        region: 'libelle_de_region_tutelle_hebergeante',
+        year: 'edition'
+      }
+    }
+
     # Override defaults
     yield @settings, overide_connect_goo if block_given?
 

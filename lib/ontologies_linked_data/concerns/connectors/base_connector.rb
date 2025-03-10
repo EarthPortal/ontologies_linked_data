@@ -1,4 +1,4 @@
-require 'net/http'
+require 'faraday'
 require 'json'
 
 module Connectors
@@ -14,30 +14,28 @@ module Connectors
     def fetch_projects(params)
       @params = params
       url = build_url
-      query_params = build_params(params)      
-      uri = URI(url)
-      uri.query = URI.encode_www_form(query_params)
-      response = fetch_data(uri)
+      query_params = build_params(params)
+      response = fetch_data(url, query_params)
       map_response(response)
     end
 
     private
-    def fetch_data(uri)
-      begin        
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = (uri.scheme == 'https')
-        request = Net::HTTP::Get.new(uri)
-        response = http.request(request)
+    def fetch_data(url, query_params)
+      begin
+        response = Faraday.new(url: url).get do |req|
+          req.params.merge!(query_params)
+        end
+        
         handle_response(response)
       rescue StandardError => e
         raise ConnectorError, "External API error: #{e.message}"
       end
     end
     
-    def handle_response(response)      
-      case response
-      when Net::HTTPSuccess
-        content_type = response.content_type || ''
+    def handle_response(response)
+      if response.success?
+        content_type = response.headers['Content-Type'] || ''
+        
         if content_type.include?('xml')
           response.body 
         elsif content_type.include?('json')
@@ -51,7 +49,8 @@ module Connectors
           end
         end
       else
-        raise ConnectorError, "External API returned error: #{response.code}"
+        error_message = "External API returned error: #{response.status}"
+        raise ConnectorError, error_message
       end
     end
 
@@ -71,13 +70,11 @@ module Connectors
   
   class Factory
     def self.create(source)
-      case source&.upcase
-      when 'ANR'
-        AnrConnector.new
-      when 'CORDIS'
-        CordisConnector.new
-      else
-        raise ConnectorError, "Unsupported source: #{source}"
+      source_key = source&.upcase
+      if LinkedData.settings.connectors && 
+         LinkedData.settings.connectors[:available_sources] &&
+         LinkedData.settings.connectors[:available_sources][source_key]
+        return LinkedData.settings.connectors[:available_sources][source_key].new
       end
     end
   end

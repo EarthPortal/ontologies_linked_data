@@ -1,23 +1,27 @@
-\
 module LinkedData
   module Models
     class Project < LinkedData::Models::Base
       model :project, :name_with => :acronym
+      
+      def self.project_sources
+        LinkedData.settings.project_sources
+      end
 
-      PROJECT_TYPES = ["FundedProject", "NonFundedProject"]
-      PROJECT_SOURCES = ["ANR", "CORDIS"]
+      def self.project_types
+        LinkedData.settings.project_types
+      end
 
       # Required attributes
       attribute :acronym, enforce: [:unique, :existence]
       attribute :creator, enforce: [:existence, :user, :list]
       attribute :created, enforce: [:date_time], :default => lambda {|x| DateTime.now }
       attribute :updated, enforce: [:date_time], :default => lambda {|x| DateTime.now }
-      attribute :type, enforce: [:existence], enforcedValues: PROJECT_TYPES
+      attribute :type, enforce: [:existence], enforcedValues: lambda { self.project_types }
       attribute :name, enforce: [:existence]
       attribute :homePage, enforce: [:uri, :existence]
       attribute :description, enforce: [:existence]
       attribute :ontologyUsed, enforce: [:ontology, :list, :existence]
-      attribute :source, enforce: [:existence], enforcedValues: PROJECT_SOURCES
+      attribute :source, enforce: [:existence], enforcedValues: lambda { self.project_sources }
       
       # Optional attributes
       attribute :keywords, enforce: [:list]
@@ -43,7 +47,7 @@ module LinkedData
       access_control_load :creator
 
       def self.valid_project_type?(type)
-        PROJECT_TYPES.include?(type)
+        self.project_types.include?(type)
       end
     end
   end
