@@ -12,12 +12,9 @@ module Connectors
     end
 
     def build_params(params)
-      raise ConnectorError, "Query parameter is required" unless params[:query]
-
-      # validate query length
-      query = params[:query].to_s.strip
-      min_query_length = LinkedData.settings.anr_connector[:min_query_length]
-      raise ConnectorError, "Query must be at least #{min_query_length} characters long" if query.length < min_query_length
+      if !params[:id] && !params[:acronym]
+        raise ConnectorError, "Either project ID or acronym is required"
+      end
       
       {
         limit: params[:limit] || LinkedData.settings.anr_connector[:default_limit],
@@ -28,22 +25,29 @@ module Connectors
     def build_query_conditions(params)
       mapping = get_dataset_mapping
       config = LinkedData.settings.anr_connector
-      query_format = config[:query_format] || "LIKE '*%s*'"
-      if params[:query]
-        query_term = params[:query]
-        search_fields = config[:search_fields] || [:acronym, :grant_number]
-        field_conditions = search_fields.map do |field_key|
-          field_name = mapping[field_key]
-          next unless field_name
-          "#{field_name} #{query_format.gsub('%s', query_term)}"
-        end.compact
+      query_format = config[:query_format]
+      
+      if params[:id]
+        # exact ID match
+        id = params[:id].to_s.strip
+        field_name = mapping[:grant_number]
+        raise ConnectorError, "Grant number field not defined in mapping" unless field_name
         
-        "(#{field_conditions.join(' OR ')})"
+        "#{field_name} = '#{id}'"
+      elsif params[:acronym]
+        # acronym search 
+        acronym_term = params[:acronym].to_s.strip
+        raise ConnectorError, "Acronym must be at least #{config[:min_acronym_length]} characters long" if acronym_term.length < config[:min_acronym_length]
+        
+        field_name = mapping[:acronym]
+        raise ConnectorError, "Acronym field not defined in mapping" unless field_name
+        
+        "#{field_name} LIKE '*#{acronym_term}*'"
       else
-        raise ConnectorError, "Query parameter is required"
+        raise ConnectorError, "Either project ID or acronym is required"
       end
     end
-    
+        
     def get_dataset_mapping
       dataset_mappings = LinkedData.settings.anr_dataset_mappings
       mapping = dataset_mappings[params[:dataset_id]]
@@ -106,9 +110,15 @@ module Connectors
     end
 
     def map_response(data)
-      raise ConnectorError, "No projects found matching search criteria" if data['results'].empty?      
+      raise ConnectorError, "No projects found matching search criteria" if data['results'].empty?
+      
       mapping = get_dataset_mapping
-      data['results'].map { |result| build_project_data(result, mapping) }
+      projects = data['results'].map { |result| build_project_data(result, mapping) }
+      
+      {
+        count: projects.length,
+        projects: projects
+      }
     end
 
     def get_description(result, mapping)

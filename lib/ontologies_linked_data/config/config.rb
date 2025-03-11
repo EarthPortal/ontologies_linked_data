@@ -118,6 +118,7 @@ module LinkedData
     # CORDIS Connector Configuration
     @settings.cordis_connector ||= {
       base_url: "https://cordis.europa.eu/project/id",
+      search_url: "https://cordis.europa.eu/search",
       format: "xml",
       source: 'CORDIS',
       project_type: 'FundedProject',
@@ -125,6 +126,13 @@ module LinkedData
       coordinator_name_element: 'legalName',
       coordinator_url_element: 'address/url',
       project_url_xpath: ".//webLink[@represents='project']/physUrl",
+      start_date_field: 'startDate',
+      end_date_field: 'endDate',
+      keyword_field: 'keywords',
+      grant_number: 'id',                 
+      project_base_url: 'https://cordis.europa.eu/project', 
+      min_acronym_length: 3,                 
+      default_limit: 10,                  
       funder: {
         name: "European Commission",
         homepage: "https://ec.europa.eu"
@@ -135,7 +143,7 @@ module LinkedData
     @settings.anr_connector ||= {
       base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets",
       default_limit: 20,
-      min_query_length: 3,
+      min_acronym_length: 3,
       source: 'ANR',
       project_type: 'FundedProject',
       query_format: "LIKE '*%s*'", 
