@@ -21,7 +21,7 @@ module Connectors
         min_acronym_length = LinkedData.settings.cordis_connector[:min_acronym_length] 
         raise ConnectorError, "Acronym must be at least #{min_acronym_length} characters long" if acronym.length < min_acronym_length
         query = "contenttype='project'"
-        query += " AND acronym='#{acronym}'"
+        query += " AND (acronym='#{acronym}*' OR acronym='* #{acronym}*' OR acronym='*-#{acronym}*' OR acronym='*_#{acronym}*')"
         {
           q: query,
           p: params[:page] || 1,
@@ -70,9 +70,6 @@ module Connectors
           # Invalid date format
         end
       end
-
-      
-  
       
       keyword_field = LinkedData.settings.cordis_connector[:keyword_field] 
       project.keywords = extract_keywords(xml_project)
@@ -124,23 +121,6 @@ module Connectors
           if projects.empty?
             raise ConnectorError, "No projects found matching acronym: #{params[:acronym]}"
           end
-          
-          # filter results for word-based matching for a better matching and reduce response size
-          if params[:acronym]
-            search_terms = params[:acronym].downcase.split(/\s+/)
-            filtered_projects = projects.select do |project|
-              if project.acronym
-                project_words = project.acronym.downcase.split(/\s+/)
-                search_terms.any? do |term|
-                  project_words.any? { |word| word.start_with?(term) || term.start_with?(word) }
-                end
-              else
-                false
-              end
-            end
-            projects = filtered_projects if filtered_projects.any?
-          end
-          
           return {
             count: projects.length, 
             projects: projects
