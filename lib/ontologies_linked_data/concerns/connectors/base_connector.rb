@@ -6,9 +6,16 @@ module Connectors
 
   class BaseConnector
     attr_reader :params
+    attr_accessor :connector_key
 
     def initialize
       @params = {}
+      @connector_key = nil
+    end
+
+    def connector_config
+      return {} unless @connector_key
+      LinkedData.settings.connectors[:configs][@connector_key] || {}
     end
 
     def fetch_projects(params)
@@ -74,8 +81,11 @@ module Connectors
       if LinkedData.settings.connectors && 
          LinkedData.settings.connectors[:available_sources] &&
          LinkedData.settings.connectors[:available_sources][source_key]
-        return LinkedData.settings.connectors[:available_sources][source_key].new
+        connector = LinkedData.settings.connectors[:available_sources][source_key].new
+        connector.connector_key = source_key
+        return connector
       end
+      raise ConnectorError, "Unsupported source: #{source}"
     end
   end
 end

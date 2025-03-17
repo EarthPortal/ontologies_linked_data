@@ -6,27 +6,27 @@ module Connectors
 
     def build_url
       if params[:id]
-        base_url = LinkedData.settings.cordis_connector[:base_url] 
+        base_url = connector_config[:base_url] 
         "#{base_url}/#{params[:id]}"
       else
-        LinkedData.settings.cordis_connector[:search_url]
+        connector_config[:search_url]
       end
     end
 
     def build_params(params)
       if params[:id]
-        { format: LinkedData.settings.cordis_connector[:format] }
+        { format: connector_config[:format] }
       elsif params[:acronym]
         acronym = params[:acronym].to_s.strip
-        min_acronym_length = LinkedData.settings.cordis_connector[:min_acronym_length] 
+        min_acronym_length = connector_config[:min_acronym_length] 
         raise ConnectorError, "Acronym must be at least #{min_acronym_length} characters long" if acronym.length < min_acronym_length
         query = "contenttype='project'"
         query += " AND (acronym='#{acronym}*' OR acronym='* #{acronym}*' OR acronym='*-#{acronym}*' OR acronym='*_#{acronym}*')"
         {
           q: query,
           p: params[:page] || 1,
-          num: params[:limit] || LinkedData.settings.cordis_connector[:default_limit],
-          format: LinkedData.settings.cordis_connector[:format]
+          num: params[:limit] || connector_config[:default_limit],
+          format: connector_config[:format]
         }
       else
         raise ConnectorError, "Either project ID or acronym is required"
@@ -36,13 +36,13 @@ module Connectors
     def map_single_project(xml_project)
       project = LinkedData::Models::Project.new
       
-      project.source = LinkedData.settings.cordis_connector[:source]
-      project.type = LinkedData.settings.cordis_connector[:project_type]
+      project.source = connector_config[:source]
+      project.type = connector_config[:project_type]
       project.acronym = xml_project.elements['acronym']&.text
       project.name = xml_project.elements['title']&.text
       project.description = xml_project.elements['objective']&.text
       
-      if url_xpath = LinkedData.settings.cordis_connector[:project_url_xpath]
+      if url_xpath = connector_config[:project_url_xpath]
         url_element = REXML::XPath.first(xml_project, url_xpath)
         project.homePage = url_element&.text || build_default_homepage(xml_project)
       else
@@ -52,8 +52,8 @@ module Connectors
       project.created = DateTime.now
       project.updated = DateTime.now
       
-      start_date_field = LinkedData.settings.cordis_connector[:start_date_field] 
-      end_date_field = LinkedData.settings.cordis_connector[:end_date_field]
+      start_date_field = connector_config[:start_date_field] 
+      end_date_field = connector_config[:end_date_field]
       
       if xml_project.elements[start_date_field]&.text
         begin
@@ -71,10 +71,10 @@ module Connectors
         end
       end
       
-      keyword_field = LinkedData.settings.cordis_connector[:keyword_field] 
+      keyword_field = connector_config[:keyword_field] 
       project.keywords = extract_keywords(xml_project)
       
-      grant_number = LinkedData.settings.cordis_connector[:grant_number]
+      grant_number = connector_config[:grant_number]
       project.grant_number = xml_project.elements[grant_number]&.text
       
       coord_data = extract_coordinator(xml_project)
@@ -86,7 +86,7 @@ module Connectors
         project.coordinator = coordinator
       end
       
-      funder_config = LinkedData.settings.cordis_connector[:funder]
+      funder_config = connector_config[:funder]
       if funder_config
         funder = LinkedData::Models::Agent.new
         funder.agentType = funder_config[:agentType]
@@ -135,8 +135,8 @@ module Connectors
     end
 
     def build_default_homepage(xml_project)
-      base_url = LinkedData.settings.cordis_connector[:project_base_url]
-      grant_number = LinkedData.settings.cordis_connector[:grant_number]
+      base_url = connector_config[:project_base_url]
+      grant_number = connector_config[:grant_number]
       project_id = xml_project.elements[grant_number]&.text
       
       "#{base_url}/#{project_id}"
@@ -159,12 +159,12 @@ module Connectors
       end
       
       # Fallback to the original coordinator extraction if available
-      coord_xpath = LinkedData.settings.cordis_connector[:coordinator_xpath]
+      coord_xpath = connector_config[:coordinator_xpath]
       if coord_xpath
         coord = REXML::XPath.first(xml_project, coord_xpath)
         if coord
-          name_element = LinkedData.settings.cordis_connector[:coordinator_name_element]
-          url_element = LinkedData.settings.cordis_connector[:coordinator_url_element]
+          name_element = connector_config[:coordinator_name_element]
+          url_element = connector_config[:coordinator_url_element]
           
           return {
             name: coord.elements[name_element]&.text,

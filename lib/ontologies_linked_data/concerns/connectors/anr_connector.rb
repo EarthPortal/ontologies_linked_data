@@ -5,9 +5,9 @@ module Connectors
     private
     
     def build_url
-      dataset_id = params[:dataset_id]
-      raise ConnectorError, "Dataset ID is required" unless dataset_id
-      base_url = LinkedData.settings.anr_connector[:base_url]
+      dataset_id = connector_config[:dataset_id]
+      raise ConnectorError, "Dataset ID not configured" unless dataset_id
+      base_url = connector_config[:base_url]
       "#{base_url}/#{dataset_id}/records"
     end
 
@@ -17,14 +17,14 @@ module Connectors
       end
       
       {
-        limit: params[:limit] || LinkedData.settings.anr_connector[:default_limit],
+        limit: params[:limit] || connector_config[:default_limit],
         where: build_query_conditions(params)
       }
     end
 
     def build_query_conditions(params)
       mapping = get_dataset_mapping
-      config = LinkedData.settings.anr_connector
+      config = connector_config
       query_format = config[:query_format]
       
       if params[:id]
@@ -49,10 +49,7 @@ module Connectors
     end
         
     def get_dataset_mapping
-      dataset_mappings = LinkedData.settings.anr_dataset_mappings
-      mapping = dataset_mappings[params[:dataset_id]]
-      raise ConnectorError, "Unsupported dataset: #{params[:dataset_id]}" unless mapping
-      mapping
+      connector_config[:field_mappings]
     end
 
     def find_matching_project(results, mapping)
@@ -66,8 +63,8 @@ module Connectors
     def build_project_data(result, mapping)
       project = LinkedData::Models::Project.new
       
-      project.source = LinkedData.settings.anr_connector[:source] || 'ANR'
-      project.type = LinkedData.settings.anr_connector[:project_type] || 'FundedProject'
+      project.source = connector_config[:source] || 'ANR'
+      project.type = connector_config[:project_type] || 'FundedProject'
       project.acronym = result[mapping[:acronym]]
       project.name = result[mapping[:name]]
       project.description = get_description(result, mapping)
@@ -94,7 +91,7 @@ module Connectors
       
       project.grant_number = result[mapping[:grant_number]]
       
-      funder_config = LinkedData.settings.anr_connector[:funder]
+      funder_config = connector_config[:funder]
       if funder_config
         funder = LinkedData::Models::Agent.new
         funder.agentType = funder_config[:agentType]  
@@ -127,7 +124,7 @@ module Connectors
       
       # Try fallbacks if primary is nil
       if description.nil?
-        fallbacks = LinkedData.settings.anr_connector[:description_fallbacks] || {}
+        fallbacks = connector_config[:description_fallbacks] || {}
         dataset_fallbacks = fallbacks[params[:dataset_id]] || []
         
         dataset_fallbacks.each do |fallback_field|
