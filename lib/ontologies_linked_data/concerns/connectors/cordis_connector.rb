@@ -79,11 +79,11 @@ module Connectors
       
       coord_data = extract_coordinator(xml_project)
       if coord_data
-        coordinator = LinkedData::Models::Agent.new
-        coordinator.agentType = "organization"
-        coordinator.name = coord_data[:name]
-        coordinator.homepage = coord_data[:homepage]
-        project.coordinator = coordinator
+        organization = LinkedData::Models::Agent.new
+        organization.agentType = "organization"
+        organization.name = coord_data[:name]
+        organization.homepage = coord_data[:homepage]
+        project.organization = organization
       end
       
       funder_config = connector_config[:funder]

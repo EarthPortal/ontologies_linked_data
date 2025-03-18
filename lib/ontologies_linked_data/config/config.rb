@@ -112,8 +112,6 @@ module LinkedData
         'ANR_AAPG' => Connectors::AnrConnector,
         'CORDIS' => Connectors::CordisConnector
       },
-      project_sources: ["ANR_FRANCE2030", "ANR_AAPG", "CORDIS"],
-      project_types: ["FundedProject", "NonFundedProject"],
       configs: {
         'CORDIS' => {
           base_url: "https://cordis.europa.eu/project/id",
@@ -121,9 +119,9 @@ module LinkedData
           format: "xml",
           source: 'CORDIS',
           project_type: 'FundedProject',
-          coordinator_xpath: ".//organization[@type='coordinator']",
-          coordinator_name_element: 'legalName',
-          coordinator_url_element: 'address/url',
+          organization_xpath: ".//organization[@type='coordinator']",
+          organization_name_element: 'legalName',                    
+          organization_url_element: 'address/url',                 
           project_url_xpath: ".//webLink[@represents='project']/physUrl",
           start_date_field: 'startDate',
           end_date_field: 'endDate',
@@ -133,6 +131,7 @@ module LinkedData
           min_acronym_length: 3,                 
           default_limit: 10,                  
           funder: {
+            agentType: 'organization',  #
             name: "European Commission",
             homepage: "https://ec.europa.eu"
           }

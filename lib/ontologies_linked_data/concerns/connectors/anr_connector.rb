@@ -124,10 +124,9 @@ module Connectors
       
       # Try fallbacks if primary is nil
       if description.nil?
-        fallbacks = connector_config[:description_fallbacks] || {}
-        dataset_fallbacks = fallbacks[params[:dataset_id]] || []
+        fallbacks = connector_config[:description_fallbacks] || []
         
-        dataset_fallbacks.each do |fallback_field|
+        fallbacks.each do |fallback_field|
           description = result[fallback_field]
           break if description
         end
