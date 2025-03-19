@@ -116,7 +116,6 @@ module LinkedData
         'CORDIS' => {
           base_url: "https://cordis.europa.eu/project/id",
           search_url: "https://cordis.europa.eu/search",
-          format: "xml",
           source: 'CORDIS',
           project_type: 'FundedProject',
           organization_xpath: ".//organization[@type='coordinator']",
@@ -127,9 +126,6 @@ module LinkedData
           end_date_field: 'endDate',
           keyword_field: 'keywords',
           grant_number: 'id',                 
-          project_base_url: 'https://cordis.europa.eu/project', 
-          min_acronym_length: 3,                 
-          default_limit: 10,                  
           funder: {
             agentType: 'organization',  #
             name: "European Commission",
@@ -137,10 +133,7 @@ module LinkedData
           }
         },
         'ANR_FRANCE2030' => {
-          base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets",
-          dataset_id: "ods_france2030-projets",
-          default_limit: 20,
-          min_acronym_length: 3,
+          base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/ods_france2030-projets/records",
           source: 'ANR',
           project_type: 'FundedProject',
           query_format: "LIKE '*%s*'", 
@@ -164,10 +157,7 @@ module LinkedData
           }
         },
         'ANR_AAPG' => {
-          base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets",
-          dataset_id: "aapg-projets",
-          default_limit: 20,
-          min_acronym_length: 3,
+          base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/aapg-projets/records",
           source: 'ANR',
           project_type: 'FundedProject',
           query_format: "LIKE '*%s*'", 

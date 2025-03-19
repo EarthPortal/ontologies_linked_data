@@ -5,39 +5,36 @@ module Connectors
     private
     
     def build_url
-      dataset_id = connector_config[:dataset_id]
-      raise ConnectorError, "Dataset ID not configured" unless dataset_id
-      base_url = connector_config[:base_url]
-      "#{base_url}/#{dataset_id}/records"
+      connector_config[:base_url] || 
+        raise(ConnectorError, "BASE URL not configured")
     end
 
-    def build_params(params)
-      if !params[:id] && !params[:acronym]
+    def build_params(project_id = nil, project_acronym = nil)
+      if !project_id && !project_acronym
         raise ConnectorError, "Either project ID or acronym is required"
-      end
-      
+      end      
       {
-        limit: params[:limit] || connector_config[:default_limit],
-        where: build_query_conditions(params)
+        limit: 10,
+        where: build_query_conditions(project_id, project_acronym)
       }
     end
 
-    def build_query_conditions(params)
+    def build_query_conditions(project_id, project_acronym)
       mapping = get_dataset_mapping
       config = connector_config
       query_format = config[:query_format]
       
-      if params[:id]
+      if project_id
         # exact ID match
-        id = params[:id].to_s.strip
+        id = project_id.to_s.strip
         field_name = mapping[:grant_number]
         raise ConnectorError, "Grant number field not defined in mapping" unless field_name
         
         "#{field_name} = '#{id}'"
-      elsif params[:acronym]
+      elsif project_acronym
         # acronym search 
-        acronym_term = params[:acronym].to_s.strip
-        raise ConnectorError, "Acronym must be at least #{config[:min_acronym_length]} characters long" if acronym_term.length < config[:min_acronym_length]
+        acronym_term = project_acronym.to_s.strip
+        raise ConnectorError, "Acronym must be at least 3 characters long" if acronym_term.length < 3
         
         field_name = mapping[:acronym]
         raise ConnectorError, "Acronym field not defined in mapping" unless field_name
@@ -53,10 +50,10 @@ module Connectors
     end
 
     def find_matching_project(results, mapping)
-      if params[:id]
-        results.find { |r| r[mapping[:grant_number]] == params[:id] }
-      elsif params[:acronym]
-        results.find { |r| r[mapping[:acronym]] == params[:acronym] }
+      if @params[:id]
+        results.find { |r| r[mapping[:grant_number]] == @params[:id] }
+      elsif @params[:acronym]
+        results.find { |r| r[mapping[:acronym]] == @params[:acronym] }
       end
     end
 

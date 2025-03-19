@@ -19,9 +19,12 @@ module Connectors
     end
 
     def fetch_projects(params)
-      @params = params
+      @params = params 
+      project_id = params[:id]
+      project_acronym = params[:acronym]
+      
       url = build_url
-      query_params = build_params(params)
+      query_params = build_params(project_id, project_acronym)
       response = fetch_data(url, query_params)
       map_response(response)
     end

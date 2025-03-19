@@ -5,28 +5,28 @@ module Connectors
     private
 
     def build_url
-      if params[:id]
+      if @params[:id]
         base_url = connector_config[:base_url] 
-        "#{base_url}/#{params[:id]}"
+        "#{base_url}/#{@params[:id]}"
       else
         connector_config[:search_url]
       end
     end
 
-    def build_params(params)
-      if params[:id]
-        { format: connector_config[:format] }
-      elsif params[:acronym]
-        acronym = params[:acronym].to_s.strip
-        min_acronym_length = connector_config[:min_acronym_length] 
-        raise ConnectorError, "Acronym must be at least #{min_acronym_length} characters long" if acronym.length < min_acronym_length
+    def build_params(project_id = nil, project_acronym = nil)
+      if project_id
+        { format: 'xml' }
+      elsif project_acronym
+        acronym = project_acronym.to_s.strip
+        raise ConnectorError, "Acronym must be at least 3 characters long" if acronym.length < 3
+        
         query = "contenttype='project'"
         query += " AND (acronym='#{acronym}*' OR acronym='* #{acronym}*' OR acronym='*-#{acronym}*' OR acronym='*_#{acronym}*')"
         {
           q: query,
-          p: params[:page] || 1,
-          num: params[:limit] || connector_config[:default_limit],
-          format: connector_config[:format]
+          p: 1,
+          num: 10,
+          format: 'xml'
         }
       else
         raise ConnectorError, "Either project ID or acronym is required"
@@ -104,7 +104,7 @@ module Connectors
       begin
         doc = REXML::Document.new(xml_data)
         
-        if doc.elements['project'] && params[:id]
+        if doc.elements['project'] && @params[:id]
           project = map_single_project(doc.elements['project'])
           return {
             count: 1,
@@ -119,7 +119,7 @@ module Connectors
           end
           
           if projects.empty?
-            raise ConnectorError, "No projects found matching acronym: #{params[:acronym]}"
+            raise ConnectorError, "No projects found matching acronym: #{@params[:acronym]}"
           end
           return {
             count: projects.length, 
@@ -135,7 +135,7 @@ module Connectors
     end
 
     def build_default_homepage(xml_project)
-      base_url = connector_config[:project_base_url]
+      base_url = connector_config[:base_url]
       grant_number = connector_config[:grant_number]
       project_id = xml_project.elements[grant_number]&.text
       
