@@ -104,7 +104,7 @@ module Connectors
     end
 
     def map_response(data)
-      raise ConnectorError, "No projects found matching search criteria" if data['results'].empty?
+      raise ProjectNotFoundError, "No projects found matching search criteria" if data['results'].empty?
       
       mapping = get_dataset_mapping
       projects = data['results'].map { |result| build_project_data(result, mapping) }

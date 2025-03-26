@@ -105,28 +105,46 @@ module Connectors
         doc = REXML::Document.new(xml_data)
         
         if doc.elements['project'] && @params[:id]
-          project = map_single_project(doc.elements['project'])
+          project_element = doc.elements['project']
+          
+          if !project_element || !project_element.elements[connector_config[:grant_number]]&.text
+            raise ProjectNotFoundError, "No projects found matching search criteria"
+          end
+          
+          project = map_single_project(project_element)
           return {
             count: 1,
             projects: [project]
           }
         elsif doc.elements['response']
           total_hits = doc.elements['response/result/header/totalHits']&.text.to_i
+          
+          if total_hits == 0
+            raise ProjectNotFoundError, "No projects found matching search criteria"
+          end
+          
           projects = []
           
           REXML::XPath.each(doc, '//hit/project') do |project_xml|
             projects << map_single_project(project_xml)
           end
           
+          
           if projects.empty?
-            raise ConnectorError, "No projects found matching acronym: #{@params[:acronym]}"
+            raise ProjectNotFoundError, "No projects found matching search criteria"
           end
+          
           return {
             count: projects.length, 
             projects: projects
           }
         else
-          raise ConnectorError, "Invalid XML response format"
+          error_element = doc.elements['error'] || doc.elements['//error']
+          if error_element&.text&.include?("not found")
+            raise ProjectNotFoundError, "No projects found matching search criteria"
+          else
+            raise ConnectorError, "Invalid XML response format"
+          end
         end
         
       rescue REXML::ParseException => e

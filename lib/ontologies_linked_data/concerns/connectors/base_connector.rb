@@ -3,7 +3,7 @@ require 'json'
 
 module Connectors
   class ConnectorError < StandardError; end
-
+  class ProjectNotFoundError < ConnectorError; end 
   class BaseConnector
     attr_reader :params
     attr_accessor :connector_key
