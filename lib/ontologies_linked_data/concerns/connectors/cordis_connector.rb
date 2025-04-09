@@ -22,6 +22,8 @@ module Connectors
         
         query = "contenttype='project'"
         query += " AND (acronym='#{acronym}*' OR acronym='* #{acronym}*' OR acronym='*-#{acronym}*' OR acronym='*_#{acronym}*')"
+        # query += " AND (acronym='#{acronym}*')"
+
         {
           q: query,
           p: 1,
@@ -113,8 +115,8 @@ module Connectors
           
           project = map_single_project(project_element)
           return {
-            count: 1,
-            projects: [project]
+            totalCount: 1,
+            collection: [project]
           }
         elsif doc.elements['response']
           total_hits = doc.elements['response/result/header/totalHits']&.text.to_i
@@ -135,8 +137,8 @@ module Connectors
           end
           
           return {
-            count: projects.length, 
-            projects: projects
+            totalCount: projects.length, 
+            collection: projects
           }
         else
           error_element = doc.elements['error'] || doc.elements['//error']

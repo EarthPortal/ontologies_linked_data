@@ -110,8 +110,8 @@ module Connectors
       projects = data['results'].map { |result| build_project_data(result, mapping) }
       
       {
-        count: projects.length,
-        projects: projects
+        totalCount: projects.length,
+        collection: projects
       }
     end
 
