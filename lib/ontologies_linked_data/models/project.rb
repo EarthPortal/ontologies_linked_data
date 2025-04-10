@@ -2,7 +2,7 @@ module LinkedData
   module Models
     class Project < LinkedData::Models::Base
       model :project, :name_with => :acronym,
-            rdf_type: lambda { |*x| 'https://schema.org/ResearchProject' }
+            rdf_type: lambda { |*x| RDF::URI.new('https://schema.org/ResearchProject') }
       
       def self.project_sources
         LinkedData.settings.connectors[:available_sources].keys
