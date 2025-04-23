@@ -122,13 +122,12 @@ module LinkedData
           organization_xpath: ".//organization[@type='coordinator']",
           organization_name_element: 'legalName',                    
           organization_url_element: 'address/url',                 
-          project_url_xpath: ".//webLink[@represents='project']/physUrl",
           start_date_field: 'startDate',
           end_date_field: 'endDate',
           keyword_field: 'keywords',
           grant_number: 'id',                 
           funder: {
-            agentType: 'organization',  #
+            agentType: 'organization', 
             name: "European Commission",
             homepage: "https://ec.europa.eu"
           }

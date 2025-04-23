@@ -44,7 +44,11 @@ module Connectors
       project.name = xml_project.elements['title']&.text
       project.description = xml_project.elements['objective']&.text
       
-      if url_xpath = connector_config[:project_url_xpath]
+      # Try to get the grantDoi first for homepage
+      grant_doi = xml_project.elements['identifiers/grantDoi']&.text
+      if grant_doi
+        project.homePage = "https://doi.org/#{grant_doi}"
+      elsif url_xpath = connector_config[:project_url_xpath]
         url_element = REXML::XPath.first(xml_project, url_xpath)
         project.homePage = url_element&.text || build_default_homepage(xml_project)
       else
@@ -54,6 +58,7 @@ module Connectors
       project.created = DateTime.now
       project.updated = DateTime.now
       
+      # Rest of the method remains unchanged
       start_date_field = connector_config[:start_date_field] 
       end_date_field = connector_config[:end_date_field]
       
@@ -101,7 +106,7 @@ module Connectors
       
       project
     end
-
+    
     def map_response(xml_data)
       begin
         doc = REXML::Document.new(xml_data)
