@@ -93,13 +93,9 @@ module Connectors
         project.organization = organization
       end
       
-      funder_config = connector_config[:funder]
-      if funder_config
-        funder = LinkedData::Models::Agent.new
-        funder.agentType = funder_config[:agentType]
-        funder.name = funder_config[:name]
-        funder.homepage = funder_config[:homepage] if funder_config[:homepage]
-        project.funder = funder
+      funder_id = connector_config[:funder]
+      if funder_id
+        project.funder = RDF::URI.new(funder_id)
       end
       
       project.ontologyUsed = []

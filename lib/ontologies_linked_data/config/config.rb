@@ -126,11 +126,7 @@ module LinkedData
           end_date_field: 'endDate',
           keyword_field: 'keywords',
           grant_number: 'id',                 
-          funder: {
-            agentType: 'organization', 
-            name: "European Commission",
-            homepage: "https://ec.europa.eu"
-          }
+          funder:"https://datastage.earthportal.eu/Agents/50112440-0633-013e-05ab-020000e64a65"
         },
         'ANR_FRANCE2030' => {
           base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/ods_france2030-projets/records",
@@ -150,11 +146,8 @@ module LinkedData
             region: 'region_du_projet',
             year: 'annee_de_contractualisation'
           },
-          funder: {
-            agentType: 'organization',
-            name: "Agence Nationale de la Recherche",
-            homepage: "https://anr.fr"
-          }
+          funder:"https://datastage.earthportal.eu/Agents/32b6ddb0-0633-013e-05ab-020000e64a65"
+          
         },
         'ANR_AAPG' => {
           base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/aapg-projets/records",
@@ -174,11 +167,7 @@ module LinkedData
             region: 'libelle_de_region_tutelle_hebergeante',
             year: 'edition'
           },
-          funder: {
-            agentType: 'organization',
-            name: "Agence Nationale de la Recherche",
-            homepage: "https://anr.fr"
-          }
+          funder:"https://datastage.earthportal.eu/Agents/32b6ddb0-0633-013e-05ab-020000e64a65"
         }
       }
     }

@@ -60,7 +60,7 @@ module Connectors
     def build_project_data(result, mapping)
       project = LinkedData::Models::Project.new
       
-      project.source = connector_config[:source] || 'ANR'
+      project.source = connector_config[:source]
       project.type = connector_config[:project_type] || 'FundedProject'
       project.acronym = result[mapping[:acronym]]
       project.name = result[mapping[:name]]
@@ -88,14 +88,9 @@ module Connectors
       
       project.grant_number = result[mapping[:grant_number]]
       
-      funder_config = connector_config[:funder]
-      if funder_config
-        funder = LinkedData::Models::Agent.new
-        funder.agentType = funder_config[:agentType]  
-        funder.name = funder_config[:name]
-        funder.homepage = funder_config[:homepage] if funder_config[:homepage]
-        
-        project.funder = funder
+      funder_id = connector_config[:funder]
+      if funder_id
+        project.funder = RDF::URI.new(funder_id)  
       end
       
       project.ontologyUsed = []
