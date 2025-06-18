@@ -43,7 +43,7 @@ module LinkedData
       attribute :keywords, enforce: [:list],
                 namespace: :schema, property: :keywords
                 
-      attribute :contact, enforce: [:Agent],
+      attribute :contact, enforce: [:Agent, :list],
                 namespace: :schema, property: :contactPoint
                 
       attribute :organization, enforce: [:Agent],
