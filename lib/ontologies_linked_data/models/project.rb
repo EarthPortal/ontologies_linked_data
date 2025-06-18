@@ -38,11 +38,11 @@ module LinkedData
                 
       attribute :source, enforcedValues: lambda { self.project_sources },
                 namespace: :schema, property: :isBasedOn
+
+      attribute :keywords, enforce: [:list, :existence],
+                namespace: :schema, property: :keywords
       
       # Optional attributes
-      attribute :keywords, enforce: [:list],
-                namespace: :schema, property: :keywords
-                
       attribute :contact, enforce: [:Agent, :list],
                 namespace: :schema, property: :contactPoint
                 
