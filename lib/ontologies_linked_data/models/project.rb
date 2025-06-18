@@ -36,7 +36,7 @@ module LinkedData
       attribute :ontologyUsed, enforce: [:ontology, :list, :existence],
                 namespace: :metadata, property: :ontologyUsed
                 
-      attribute :source, enforce: [:existence], enforcedValues: lambda { self.project_sources },
+      attribute :source, enforcedValues: lambda { self.project_sources },
                 namespace: :schema, property: :isBasedOn
       
       # Optional attributes
