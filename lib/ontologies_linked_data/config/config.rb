@@ -137,13 +137,12 @@ module LinkedData
           description_fallbacks: ['action_nom_long', 'description'],
           field_mappings: {
             acronym: 'acronyme',
-            name: 'action_nom',
+            name: 'acronyme',
             description: 'resume',
             homepage: 'lien',
             grant_number: 'eotp_projet',
             start_date: 'date_debut_projet',
             end_date: 'date_fin',
-            region: 'region_du_projet',
             year: 'annee_de_contractualisation'
           },
           funder:"https://datastage.earthportal.eu/Agents/32b6ddb0-0633-013e-05ab-020000e64a65"
@@ -158,13 +157,12 @@ module LinkedData
           description_fallbacks: ['objectifs', 'abstract'],
           field_mappings: {
             acronym: 'acronyme_projet',
-            name: 'intitule_complet_du_comite',
+            name: 'acronyme_projet',
             description: nil,
             homepage: 'lien',
             grant_number: 'code_projet_anr',
             start_date: nil,
             end_date: nil,
-            region: 'libelle_de_region_tutelle_hebergeante',
             year: 'edition'
           },
           funder:"https://datastage.earthportal.eu/Agents/32b6ddb0-0633-013e-05ab-020000e64a65"
