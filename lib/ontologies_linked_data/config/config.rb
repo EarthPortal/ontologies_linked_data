@@ -1,5 +1,7 @@
 require 'goo'
 require 'ostruct'
+require 'json'
+
 
 module LinkedData
   extend self
@@ -107,68 +109,17 @@ module LinkedData
 
 
     # Global connector configuration
-    @settings.connectors ||= {
-      available_sources: {
-        'ANR_FRANCE2030' => Connectors::AnrConnector,
-        'ANR_AAPG' => Connectors::AnrConnector,
-        'CORDIS' => Connectors::CordisConnector
-      },
-      configs: {
-        'CORDIS' => {
-          base_url: "https://cordis.europa.eu/project/id",
-          search_url: "https://cordis.europa.eu/search",
-          source: 'CORDIS',
-          project_type: 'FundedProject',
-          organization_xpath: ".//organization[@type='coordinator']",
-          organization_name_element: 'legalName',                    
-          organization_url_element: 'address/url',                 
-          start_date_field: 'startDate',
-          end_date_field: 'endDate',
-          keyword_field: 'keywords',
-          grant_number: 'id',                 
-          funder:"https://datastage.earthportal.eu/Agents/50112440-0633-013e-05ab-020000e64a65"
-        },
-        'ANR_FRANCE2030' => {
-          base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/ods_france2030-projets/records",
-          source: 'ANR',
-          project_type: 'FundedProject',
-          query_format: "LIKE '*%s*'", 
-          search_fields: [:acronym, :grant_number, :name],
-          description_fallbacks: ['action_nom_long', 'description'],
-          field_mappings: {
-            acronym: 'acronyme',
-            name: 'acronyme',
-            description: 'resume',
-            homepage: 'lien',
-            grant_number: 'eotp_projet',
-            start_date: 'date_debut_projet',
-            end_date: 'date_fin',
-            year: 'annee_de_contractualisation'
-          },
-          funder:"https://datastage.earthportal.eu/Agents/32b6ddb0-0633-013e-05ab-020000e64a65"
-          
-        },
-        'ANR_AAPG' => {
-          base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/aapg-projets/records",
-          source: 'ANR',
-          project_type: 'FundedProject',
-          query_format: "LIKE '*%s*'", 
-          search_fields: [:acronym, :grant_number, :name],
-          description_fallbacks: ['objectifs', 'abstract'],
-          field_mappings: {
-            acronym: 'acronyme_projet',
-            name: 'acronyme_projet',
-            description: nil,
-            homepage: 'lien',
-            grant_number: 'code_projet_anr',
-            start_date: nil,
-            end_date: nil,
-            year: 'edition'
-          },
-          funder:"https://datastage.earthportal.eu/Agents/32b6ddb0-0633-013e-05ab-020000e64a65"
-        }
-      }
-    }
+    connectors_json_path = File.expand_path('/config/projects-connectors.json', __dir__)
+    if File.exist?(connectors_json_path)
+      connectors_data = JSON.parse(File.read(connectors_json_path))
+      if connectors_data["available_sources"]
+        connectors_data["available_sources"].each do |k, v|
+          connectors_data["available_sources"][k] = Object.const_get(v)
+        end
+      end
+      @settings.connectors = connectors_data
+    end
+    
 
     # Override defaults
     yield @settings, overide_connect_goo if block_given?
