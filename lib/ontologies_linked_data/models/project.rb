@@ -3,13 +3,9 @@ module LinkedData
     class Project < LinkedData::Models::Base
       model :project, :name_with => :acronym,
             rdf_type: lambda { |*x| RDF::URI.new('https://schema.org/ResearchProject') }
-      
-      def self.project_sources
-        LinkedData.settings.connectors[:available_sources].keys
-      end
 
       # Required attributes
-      attribute :acronym, enforce: [:unique, :existence], 
+      attribute :acronym, enforce: [:unique, :existence, lambda { |inst,attr| validate_acronym(inst,attr) }], 
                 namespace: :metadata, property: :acronym
                 
       attribute :creator, enforce: [:existence, :user, :list], 
@@ -72,6 +68,37 @@ module LinkedData
 
       write_access :creator
       access_control_load :creator
+
+      def self.validate_acronym(inst, attr)
+        inst.bring(attr) if inst.bring?(attr)
+        acronym = inst.send(attr)
+
+        return [] if acronym.nil?
+
+        errors = []
+
+        if acronym.match(/\A[^a-z^A-Z]{1}/)
+          errors << [:start_with_letter, "`acronym` must start with a letter"]
+        end
+
+        if acronym.match(/[a-z]/)
+          errors << [:capital_letters, "`acronym` must be all capital letters"]
+        end
+
+        if acronym.match(/[^-_0-9a-zA-Z]/)
+          errors << [:special_characters, "`acronym` must only contain the following characters: -, _, letters, and numbers"]
+        end
+
+        if acronym.match(/.{17,}/)
+          errors << [:length, "`acronym` must be sixteen characters or less"]
+        end
+
+        return errors.flatten
+      end
+
+      def self.project_sources
+        LinkedData.settings.connectors[:available_sources].keys
+      end
     end
   end
 end
