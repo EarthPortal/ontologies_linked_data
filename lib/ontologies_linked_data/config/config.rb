@@ -107,19 +107,31 @@ module LinkedData
     @settings.indexing_num_threads          ||= 1
 
 
+    require 'active_support/core_ext/hash/indifferent_access'
 
-    # Global connector configuration
-    connectors_json_path = File.expand_path('/config/projects-connectors.json', __dir__)
+    connectors_json_path = File.join(File.dirname(__FILE__), '..', '..', '..', 'config', 'projects-connectors.json')
     if File.exist?(connectors_json_path)
-      connectors_data = JSON.parse(File.read(connectors_json_path))
-      if connectors_data["available_sources"]
-        connectors_data["available_sources"].each do |k, v|
-          connectors_data["available_sources"][k] = Object.const_get(v)
+      begin
+        connectors_data = JSON.parse(File.read(connectors_json_path)).with_indifferent_access
+        if connectors_data[:available_sources]
+          connectors_data[:available_sources].each do |k, v|
+            connectors_data[:available_sources][k] = Object.const_get(v)
+          end
         end
+        if connectors_data[:configs]
+          connectors_data[:configs].each do |_, config|
+            config[:search_fields]&.map!(&:to_sym)
+          end
+        end
+        @settings.connectors = connectors_data
+      rescue => e
+        @settings.connectors = { available_sources: {}, configs: {} }.with_indifferent_access
       end
-      @settings.connectors = connectors_data
+    else
+      @settings.connectors = { available_sources: {}, configs: {} }.with_indifferent_access
     end
-    
+
+
 
     # Override defaults
     yield @settings, overide_connect_goo if block_given?
