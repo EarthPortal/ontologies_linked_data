@@ -62,7 +62,10 @@ module Connectors
       
       project.source = connector_config[:source]
       project.type = connector_config[:project_type] || 'FundedProject'
-      project.acronym = result[mapping[:acronym]]
+      raw_acronym = result[mapping[:acronym]]
+      if raw_acronym
+        project.acronym = raw_acronym.upcase.gsub(' ', '-')
+      end
       project.name = result[mapping[:name]]
       project.description = get_description(result, mapping)
       project.homePage = result[mapping[:homepage]]

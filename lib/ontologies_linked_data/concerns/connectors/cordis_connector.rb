@@ -40,7 +40,10 @@ module Connectors
       
       project.source = connector_config[:source]
       project.type = connector_config[:project_type]
-      project.acronym = xml_project.elements['acronym']&.text
+      raw_acronym = xml_project.elements['acronym']&.text
+      if raw_acronym
+        project.acronym = raw_acronym.upcase.gsub(' ', '-')
+      end
       project.name = xml_project.elements['title']&.text
       project.description = xml_project.elements['objective']&.text
       
@@ -58,7 +61,6 @@ module Connectors
       project.created = DateTime.now
       project.updated = DateTime.now
       
-      # Rest of the method remains unchanged
       start_date_field = connector_config[:start_date_field] 
       end_date_field = connector_config[:end_date_field]
       
