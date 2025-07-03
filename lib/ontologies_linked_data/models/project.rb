@@ -64,7 +64,7 @@ module LinkedData
       serialize_default :acronym, :type, :name, :homePage, :description, 
                       :ontologyUsed, :created, :updated, :keywords,
                       :contact, :organization, :grant_number, :start_date, 
-                      :end_date, :funder, :logo, :source
+                      :end_date, :funder, :logo, :source, :creator
 
       write_access :creator
       access_control_load :creator
