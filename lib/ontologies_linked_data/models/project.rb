@@ -6,28 +6,28 @@ module LinkedData
 
       # Required attributes
       attribute :acronym, enforce: [:unique, :existence, lambda { |inst,attr| validate_acronym(inst,attr) }], 
-                namespace: :metadata, property: :acronym
+                namespace: :frapo, property: :hasAcronym
                 
       attribute :creator, enforce: [:existence, :user, :list], 
-                namespace: :schema, property: :creator
+                namespace: :foaf, property: :Agent
                 
       attribute :created, enforce: [:date_time], :default => lambda {|x| DateTime.now },
-                namespace: :schema, property: :dateCreated
+                namespace: :dcterms, property: :created
                 
       attribute :updated, enforce: [:date_time], :default => lambda {|x| DateTime.now },
-                namespace: :schema, property: :dateModified
+                namespace: :dcterms, property: :modified
                 
       attribute :type, enforce: [:existence], enforcedValues: %w[FundedProject NonFundedProject],
-                namespace: :metadata, property: :projectType
+                namespace: :foaf, property: :Project
                 
       attribute :name, enforce: [:existence],
-                namespace: :schema, property: :legalName
+                namespace: :foaf, property: :name
                 
       attribute :homePage, enforce: [:uri, :existence],
                 namespace: :foaf, property: :homepage
                 
       attribute :description, enforce: [:existence],
-                namespace: :schema, property: :description
+                namespace: :dc, property: :description
                 
       attribute :ontologyUsed, enforce: [:ontology, :list, :existence],
                 namespace: :metadata, property: :ontologyUsed
@@ -36,29 +36,29 @@ module LinkedData
                 namespace: :schema, property: :isBasedOn
 
       attribute :keywords, enforce: [:list, :existence],
-                namespace: :schema, property: :keywords
+                namespace: :frapo, property: :hasKeyword
       
       # Optional attributes
       attribute :contact, enforce: [:Agent, :list],
                 namespace: :schema, property: :contactPoint
                 
       attribute :organization, enforce: [:Agent],
-                namespace: :org, property: :memberOf
+                namespace: :frapo, property: :isSupportedBy
                 
       attribute :logo, enforce: [:uri],
-                namespace: :schema, property: :logo
+                namespace: :foaf, property: :logo
       
       attribute :grant_number, enforce: [:string],
-                namespace: :schema, property: :identifier
+                namespace: :dcterms, property: :identifier
                 
       attribute :start_date, enforce: [:date_time],
-                namespace: :schema, property: :startDate
+                namespace: :frapo, property: :hasStartDate
                 
       attribute :end_date, enforce: [:date_time],
-                namespace: :schema, property: :endDate
+                namespace: :frapo, property: :hasEndDate
                 
       attribute :funder, enforce: [:Agent],
-                namespace: :schema, property: :funder
+                namespace: :frapo, property: :isFundedBy
 
       embed :contact, :organization, :funder
       serialize_default :acronym, :type, :name, :homePage, :description, 
