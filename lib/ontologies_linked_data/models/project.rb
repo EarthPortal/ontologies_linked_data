@@ -54,8 +54,9 @@ module LinkedData
       attribute :start_date, enforce: [:date_time],
                 namespace: :frapo, property: :hasStartDate
                 
-      attribute :end_date, enforce: [:date_time],
-                namespace: :frapo, property: :hasEndDate
+      attribute :end_date, enforce: [:date_time, lambda { |inst, attr| validate_dates(inst, attr) }],
+          namespace: :frapo, property: :hasEndDate
+
                 
       attribute :funder, enforce: [:Agent],
                 namespace: :frapo, property: :isFundedBy
@@ -94,6 +95,23 @@ module LinkedData
         end
 
         return errors.flatten
+      end
+
+
+      def self.validate_dates(inst, attr)
+        inst.bring(:start_date) if inst.bring?(:start_date)
+        inst.bring(attr) if inst.bring?(attr)
+        
+        start_date = inst.start_date
+        end_date = inst.send(attr)
+        
+        return [] if start_date.nil? || end_date.nil?
+        
+        if start_date >= end_date
+          return [[:invalid_date_range, "Start date must be before end date"]]
+        end
+        
+        return []
       end
 
       def self.project_sources
