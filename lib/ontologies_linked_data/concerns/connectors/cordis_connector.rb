@@ -40,11 +40,18 @@ module Connectors
       
       project.source = connector_config[:source]
       project.type = connector_config[:project_type]
-      project.acronym = xml_project.elements['acronym']&.text
+      raw_acronym = xml_project.elements['acronym']&.text
+      if raw_acronym
+        project.acronym = raw_acronym.upcase.gsub(' ', '-')
+      end
       project.name = xml_project.elements['title']&.text
       project.description = xml_project.elements['objective']&.text
       
-      if url_xpath = connector_config[:project_url_xpath]
+      # Try to get the grantDoi first for homepage
+      grant_doi = xml_project.elements['identifiers/grantDoi']&.text
+      if grant_doi
+        project.homePage = "https://doi.org/#{grant_doi}"
+      elsif url_xpath = connector_config[:project_url_xpath]
         url_element = REXML::XPath.first(xml_project, url_xpath)
         project.homePage = url_element&.text || build_default_homepage(xml_project)
       else
@@ -88,20 +95,16 @@ module Connectors
         project.organization = organization
       end
       
-      funder_config = connector_config[:funder]
-      if funder_config
-        funder = LinkedData::Models::Agent.new
-        funder.agentType = funder_config[:agentType]
-        funder.name = funder_config[:name]
-        funder.homepage = funder_config[:homepage] if funder_config[:homepage]
-        project.funder = funder
+      funder_id = connector_config[:funder]
+      if funder_id
+        project.funder = RDF::URI.new(funder_id)
       end
       
       project.ontologyUsed = []
       
       project
     end
-
+    
     def map_response(xml_data)
       begin
         doc = REXML::Document.new(xml_data)

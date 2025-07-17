@@ -1,5 +1,7 @@
 require 'goo'
 require 'ostruct'
+require 'json'
+
 
 module LinkedData
   extend self
@@ -105,84 +107,31 @@ module LinkedData
     @settings.indexing_num_threads          ||= 1
 
 
+    require 'active_support/core_ext/hash/indifferent_access'
 
-    # Global connector configuration
-    @settings.connectors ||= {
-      available_sources: {
-        'ANR_FRANCE2030' => Connectors::AnrConnector,
-        'ANR_AAPG' => Connectors::AnrConnector,
-        'CORDIS' => Connectors::CordisConnector
-      },
-      configs: {
-        'CORDIS' => {
-          base_url: "https://cordis.europa.eu/project/id",
-          search_url: "https://cordis.europa.eu/search",
-          source: 'CORDIS',
-          project_type: 'FundedProject',
-          organization_xpath: ".//organization[@type='coordinator']",
-          organization_name_element: 'legalName',                    
-          organization_url_element: 'address/url',                 
-          project_url_xpath: ".//webLink[@represents='project']/physUrl",
-          start_date_field: 'startDate',
-          end_date_field: 'endDate',
-          keyword_field: 'keywords',
-          grant_number: 'id',                 
-          funder: {
-            agentType: 'organization',  #
-            name: "European Commission",
-            homepage: "https://ec.europa.eu"
-          }
-        },
-        'ANR_FRANCE2030' => {
-          base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/ods_france2030-projets/records",
-          source: 'ANR',
-          project_type: 'FundedProject',
-          query_format: "LIKE '*%s*'", 
-          search_fields: [:acronym, :grant_number, :name],
-          description_fallbacks: ['action_nom_long', 'description'],
-          field_mappings: {
-            acronym: 'acronyme',
-            name: 'action_nom',
-            description: 'resume',
-            homepage: 'lien',
-            grant_number: 'eotp_projet',
-            start_date: 'date_debut_projet',
-            end_date: 'date_fin',
-            region: 'region_du_projet',
-            year: 'annee_de_contractualisation'
-          },
-          funder: {
-            agentType: 'organization',
-            name: "Agence Nationale de la Recherche",
-            homepage: "https://anr.fr"
-          }
-        },
-        'ANR_AAPG' => {
-          base_url: "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/aapg-projets/records",
-          source: 'ANR',
-          project_type: 'FundedProject',
-          query_format: "LIKE '*%s*'", 
-          search_fields: [:acronym, :grant_number, :name],
-          description_fallbacks: ['objectifs', 'abstract'],
-          field_mappings: {
-            acronym: 'acronyme_projet',
-            name: 'intitule_complet_du_comite',
-            description: nil,
-            homepage: 'lien',
-            grant_number: 'code_projet_anr',
-            start_date: nil,
-            end_date: nil,
-            region: 'libelle_de_region_tutelle_hebergeante',
-            year: 'edition'
-          },
-          funder: {
-            agentType: 'organization',
-            name: "Agence Nationale de la Recherche",
-            homepage: "https://anr.fr"
-          }
-        }
-      }
-    }
+    connectors_json_path = File.join(File.dirname(__FILE__), '..', '..', '..', 'config', 'projects-connectors.json')
+    if File.exist?(connectors_json_path)
+      begin
+        connectors_data = JSON.parse(File.read(connectors_json_path)).with_indifferent_access
+        if connectors_data[:available_sources]
+          connectors_data[:available_sources].each do |k, v|
+            connectors_data[:available_sources][k] = Object.const_get(v)
+          end
+        end
+        if connectors_data[:configs]
+          connectors_data[:configs].each do |_, config|
+            config[:search_fields]&.map!(&:to_sym)
+          end
+        end
+        @settings.connectors = connectors_data
+      rescue => e
+        @settings.connectors = { available_sources: {}, configs: {} }.with_indifferent_access
+      end
+    else
+      @settings.connectors = { available_sources: {}, configs: {} }.with_indifferent_access
+    end
+
+
 
     # Override defaults
     yield @settings, overide_connect_goo if block_given?
@@ -280,6 +229,7 @@ module LinkedData
       conf.add_namespace(:skosxl, RDF::Vocabulary.new("http://www.w3.org/2008/05/skos-xl#"))
       conf.add_namespace(:dcterms, RDF::Vocabulary.new("http://purl.org/dc/terms/"))
       conf.add_namespace(:uneskos, RDF::Vocabulary.new("http://purl.org/umu/uneskos#"))
+      conf.add_namespace(:frapo, RDF::Vocabulary.new("http://purl.org/cerif/frapo/"))
 
 
       conf.id_prefix = DEFAULT_PREFIX
