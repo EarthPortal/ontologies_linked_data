@@ -1,4 +1,5 @@
 require 'ontologies_linked_data/models/mod/semantic_artefact_distribution'
+require 'ontologies_linked_data/models/mod/semantic_artefact_catalog_record'
 require 'ontologies_linked_data/models/skos/scheme'
 require 'ontologies_linked_data/models/skos/collection'
 require 'ontologies_linked_data/models/skos/skosxl'
@@ -7,7 +8,7 @@ require 'ontologies_linked_data/models/skos/skosxl'
 module LinkedData
     module Models
 
-        class SemanticArtefact < LinkedData::Models::Base
+        class SemanticArtefact < LinkedData::Models::ModBase
             include LinkedData::Concerns::SemanticArtefact::AttributeMapping
             include LinkedData::Concerns::SemanticArtefact::AttributeFetcher
 
@@ -118,17 +119,16 @@ module LinkedData
             attribute :ontology, type: :ontology, enforce: [:existence]
             
             links_load :acronym
-            link_to LinkedData::Hypermedia::Link.new("distributions", lambda {|s| "artefacts/#{s.acronym}/distributions"}, LinkedData::Models::SemanticArtefactDistribution.type_uri),
-                    LinkedData::Hypermedia::Link.new("record", lambda {|s| "artefacts/#{s.acronym}/record"}),
-                    LinkedData::Hypermedia::Link.new("resources", lambda {|s| "artefacts/#{s.acronym}/resources"}),
-                    LinkedData::Hypermedia::Link.new("single_resource", lambda {|s| "artefacts/#{s.acronym}/resources/{:resourceID}"}),
-                    LinkedData::Hypermedia::Link.new("classes", lambda {|s| "artefacts/#{s.acronym}/classes"}, LinkedData::Models::Class.uri_type),
-                    LinkedData::Hypermedia::Link.new("concepts", lambda {|s| "artefacts/#{s.acronym}/concepts"}, LinkedData::Models::Class.uri_type),
-                    LinkedData::Hypermedia::Link.new("properties", lambda {|s| "artefacts/#{s.acronym}/properties"}, "#{Goo.namespaces[:metadata].to_s}Property"),
-                    LinkedData::Hypermedia::Link.new("individuals", lambda {|s| "artefacts/#{s.acronym}/classes/roots"}, LinkedData::Models::Class.uri_type),
-                    LinkedData::Hypermedia::Link.new("schemes", lambda {|s| "artefacts/#{s.acronym}/schemes"}, LinkedData::Models::SKOS::Scheme.uri_type),
-                    LinkedData::Hypermedia::Link.new("collection", lambda {|s| "artefacts/#{s.acronym}/collections"}, LinkedData::Models::SKOS::Collection.uri_type),
-                    LinkedData::Hypermedia::Link.new("labels", lambda {|s| "artefacts/#{s.acronym}/labels"}, LinkedData::Models::SKOS::Label.uri_type)
+            link_to LinkedData::Hypermedia::Link.new("distributions", lambda {|s| "mod-api/artefacts/#{s.acronym}/distributions"}, LinkedData::Models::SemanticArtefactDistribution.type_uri),
+                    LinkedData::Hypermedia::Link.new("record", lambda {|s| "mod-api/artefacts/#{s.acronym}/record"}, LinkedData::Models::SemanticArtefactCatalogRecord.type_uri),
+                    LinkedData::Hypermedia::Link.new("resources", lambda {|s| "mod-api/artefacts/#{s.acronym}/resources"}),
+                    LinkedData::Hypermedia::Link.new("classes", lambda {|s| "mod-api/artefacts/#{s.acronym}/resources/classes"}, LinkedData::Models::Class.uri_type),
+                    LinkedData::Hypermedia::Link.new("concepts", lambda {|s| "mod-api/artefacts/#{s.acronym}/resources/concepts"}, LinkedData::Models::Class.uri_type),
+                    LinkedData::Hypermedia::Link.new("properties", lambda {|s| "mod-api/artefacts/#{s.acronym}/resources/properties"}, "#{Goo.namespaces[:metadata].to_s}Property"),
+                    LinkedData::Hypermedia::Link.new("individuals", lambda {|s| "mod-api/artefacts/#{s.acronym}/resources/individuals"}, LinkedData::Models::Class.uri_type),
+                    LinkedData::Hypermedia::Link.new("schemes", lambda {|s| "mod-api/artefacts/#{s.acronym}/resources/schemes"}, LinkedData::Models::SKOS::Scheme.uri_type),
+                    LinkedData::Hypermedia::Link.new("collection", lambda {|s| "mod-api/artefacts/#{s.acronym}/resources/collections"}, LinkedData::Models::SKOS::Collection.uri_type),
+                    LinkedData::Hypermedia::Link.new("labels", lambda {|s| "mod-api/artefacts/#{s.acronym}/resources/labels"}, LinkedData::Models::SKOS::Label.uri_type)
 
             # Access control
             read_restriction_based_on ->(artefct) { artefct.ontology }
@@ -167,7 +167,7 @@ module LinkedData
                         sa.bring(*attributes) if attributes
                     end
                 end
-                Goo::Base::Page.new(page, pagesize, all_count, all_artefacts)
+                LinkedData::Models::HydraPage.new(page, pagesize, all_count, all_artefacts)
             end
 
             def latest_distribution(status)
@@ -180,15 +180,20 @@ module LinkedData
                 SemanticArtefactDistribution.new(sub) unless sub.nil?
             end
         
-            def all_distributions(options = {})
-                to_bring = options[:includes]
-                @ontology.bring(:submissions)
-        
-                @ontology.submissions.map do |submission|
+            def all_distributions(attributes, page, pagesize)
+                filter_by_acronym = Goo::Filter.new(ontology: [:acronym]) == @ontology.acronym
+                submissions_count =  OntologySubmission.where.filter(filter_by_acronym).count
+                submissions_page = OntologySubmission.where.include(:distributionId)
+                                                    .filter(filter_by_acronym)
+                                                    .page(page, pagesize)
+                                                    .page_count_set(submissions_count)
+                                                    .all
+                all_distributions = submissions_page.map do |submission|
                     SemanticArtefactDistribution.new(submission).tap do |dist|
-                        dist.bring(*to_bring) if to_bring
+                        dist.bring(*attributes) if attributes
                     end
                 end
+                LinkedData::Models::HydraPage.new(page, pagesize, submissions_count, all_distributions)
             end
     
             def analytics
