@@ -17,7 +17,7 @@
       "end_date_field": "endDate",
       "keyword_field": "keywords",
       "grant_number": "id",
-      "funder": "https://datastage.earthportal.eu/Agents/50112440-0633-013e-05ab-020000e64a65"
+      "funder": "https://data.earthportal.eu/Agents/aeb85130-4a20-013e-96d8-02000066dd68"
     },
     "ANR_FRANCE2030": {
       "base_url": "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/ods_france2030-projets/records",
@@ -36,7 +36,7 @@
         "end_date": "date_fin",
         "year": "annee_de_contractualisation"
       },
-      "funder": "https://datastage.earthportal.eu/Agents/32b6ddb0-0633-013e-05ab-020000e64a65"
+      "funder": "https://data.earthportal.eu/Agents/6c0a1490-4a20-013e-96d8-02000066dd68"
     },
     "ANR_AAPG": {
       "base_url": "https://dataanr.opendatasoft.com/api/explore/v2.1/catalog/datasets/aapg-projets/records",
@@ -55,7 +55,7 @@
         "end_date": null,
         "year": "edition"
       },
-      "funder": "https://datastage.earthportal.eu/Agents/32b6ddb0-0633-013e-05ab-020000e64a65"
+      "funder": "https://data.earthportal.eu/Agents/6c0a1490-4a20-013e-96d8-02000066dd68"
     }
   }
 }
