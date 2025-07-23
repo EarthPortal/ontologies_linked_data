@@ -22,7 +22,6 @@ class TestProject < LinkedData::TestCase
       :acronym => "GP",
       :creator => [@user],
       :created => DateTime.now,
-      :institution => "A university.",
       :contacts => "Anonymous Funk, Anonymous Miller.",
       :homePage => RDF::IRI.new("http://valid.uri.com"),
       :description => "This is a test project",
@@ -43,23 +42,13 @@ class TestProject < LinkedData::TestCase
   def test_project_acronym
     p = LinkedData::Models::Project.new
     assert (not p.valid?)
-    # name should be a valid URI, this should be:
     p.acronym = @project_params[:acronym]
     assert (not p.valid?) # Other attributes generate errors
     assert_equal(true, p.errors[:acronym].nil?)
   end
 
-  def test_project_contacts
-    p = LinkedData::Models::Project.new
-    assert (not p.valid?)
-    # This should be a string.
-    p.contacts = @project_params[:contacts]
-    assert (not p.valid?) # Other attributes generate errors
-    assert_equal(true, p.errors[:contacts].nil?)
-  end
-
   def test_project_created
-    # Ensure there is no 'created' parameter so the model creates a default value.
+    # Ensure there is no 'created' parameter so the model creates a default value
     @project_params.delete :created
     model_created_test(LinkedData::Models::Project.new(@project_params)) # method from test_case.rb
   end
@@ -80,6 +69,9 @@ class TestProject < LinkedData::TestCase
     p.description = @project_params[:description]
     p.creator = @project_params[:creator]
     p.homePage = @project_params[:homePage]
+    p.type = @project_params[:type]
+    p.source = @project_params[:source]
+    p.ontologyUsed = @project_params[:ontologyUsed]
     assert p.valid?, p.errors
 
     # Creator attribute not a list.
@@ -112,7 +104,6 @@ class TestProject < LinkedData::TestCase
   def test_project_description
     p = LinkedData::Models::Project.new
     assert (not p.valid?)
-    # This should be a string.
     p.description = @project_params[:description]
     assert (not p.valid?) # Other attributes generate errors
     assert_equal(true, p.errors[:description].nil?)
@@ -129,15 +120,6 @@ class TestProject < LinkedData::TestCase
     p.homePage = @project_params[:homePage]
     assert (not p.valid?) # Other attributes generate errors
     assert_equal(true, p.errors[:homePage].nil?)
-  end
-
-  def test_project_institution
-    p = LinkedData::Models::Project.new
-    assert (not p.valid?)
-    # This should be a string.
-    p.institution = @project_params[:institution]
-    assert (not p.valid?) # Other attributes generate errors
-    assert_equal(true, p.errors[:institution].nil?)
   end
 
   def test_project_name
@@ -165,34 +147,113 @@ class TestProject < LinkedData::TestCase
     assert_equal(true, p.errors[:ontologyUsed].nil?)
   end
 
+  def test_project_type
+    p = LinkedData::Models::Project.new
+    assert (not p.valid?)
+    # Invalid type
+    p.type = "InvalidType"
+    assert (not p.valid?)
+    assert_equal(false, p.errors[:type].nil?)
+    # Valid type
+    p.type = "FundedProject"
+    assert (not p.valid?) # Other attributes generate errors
+    assert_equal(true, p.errors[:type].nil?)
+  end
+
+  def test_project_source
+    p = LinkedData::Models::Project.new
+    assert (not p.valid?)
+    # Invalid source
+    p.source = "INVALID_SOURCE"
+    assert (not p.valid?)
+    assert_equal(false, p.errors[:source].nil?)
+    # Valid source
+    p.source = LinkedData::Models::Project.project_sources.first
+    assert (not p.valid?) # Other attributes generate errors
+    assert_equal(true, p.errors[:source].nil?)
+  end
+
   def test_valid_project
     # The setup project parameters should be valid
     p = LinkedData::Models::Project.new(@project_params)
     assert_equal(true, p.valid?, "Invalid project parameters: #{p.errors}")
-    # Incrementally evaluate project validity...
+    
+    # Incrementally evaluate project validity
     p = LinkedData::Models::Project.new
     assert (not p.valid?)
-    # Not valid because not all attributes are present...
+    
+    # Add required attributes
     p.name = @project_params[:name]
     p.acronym = @project_params[:acronym]
-    p.created = @project_params[:created]
     p.homePage = @project_params[:homePage]
     p.description = @project_params[:description]
-    p.institution = @project_params[:institution]
+    p.type = @project_params[:type]
+    p.source = @project_params[:source]
     assert (not p.valid?)
-    # Still not valid because not all attributes are typed properly...
+    
+    # Invalid creator and ontologyUsed types
     p.creator = "test_user" # must be LinkedData::Model::User
     assert (not p.valid?)
     p.ontologyUsed = "TEST_ONT" # must be array of LinkedData::Model::Ontology
     assert (not p.valid?)
-    # Complete valid project...
+    
+    # Complete valid project
     p.creator = @project_params[:creator]
     p.ontologyUsed = @project_params[:ontologyUsed]
-    assert p.valid?
+    assert p.valid?, p.errors
+  end
+
+  def test_optional_attributes
+    p = LinkedData::Models::Project.new(@project_params)
+    assert p.valid?, p.errors
+    
+    # Test optional attributes
+    p.keywords = ["keyword1", "keyword2"]
+    assert p.valid?, p.errors
+    
+    # Test date attributes
+    p.start_date = DateTime.now - 30
+    p.end_date = DateTime.now + 30
+    assert p.valid?, p.errors
+    
+    # Test grant number
+    p.grant_number = "GRANT-123"
+    assert p.valid?, p.errors
+    
+    # Test adding logo
+    p.logo = RDF::IRI.new("http://example.org/logo.png")
+    assert p.valid?, p.errors
+  end
+
+  def test_agent_attributes
+    p = LinkedData::Models::Project.new(@project_params)
+    assert p.valid?, p.errors
+    
+    # Create contact agent
+    contact = LinkedData::Models::Agent.new
+    contact.agentType = "person"
+    contact.name = "John Doe"
+    contact.email = "john@example.org"
+    p.contact = contact
+    
+    # Create organization agent
+    org = LinkedData::Models::Agent.new
+    org.agentType = "organization"
+    org.name = "Example University"
+    org.homepage = "http://university.example.org"
+    p.organization = org
+    
+    # Create funder agent
+    funder = LinkedData::Models::Agent.new
+    funder.agentType = "organization"
+    funder.name = "Funding Agency"
+    funder.homepage = "http://funder.example.org"
+    p.funder = funder
+    
+    assert p.valid?, p.errors
   end
 
   def test_project_lifecycle
     model_lifecycle_test(LinkedData::Models::Project.new(@project_params))
   end
-
 end

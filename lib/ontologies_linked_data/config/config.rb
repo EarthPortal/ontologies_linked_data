@@ -1,5 +1,7 @@
 require 'goo'
 require 'ostruct'
+require 'json'
+
 
 module LinkedData
   extend self
@@ -28,7 +30,7 @@ module LinkedData
     @settings.search_server_url             ||= 'http://localhost:8983/solr'
     @settings.property_search_server_url    ||= 'http://localhost:8983/solr'
     @settings.repository_folder             ||= './test/data/ontology_files/repo'
-    @settings.rest_url_prefix                ||= DEFAULT_PREFIX
+    @settings.rest_url_prefix               ||= DEFAULT_PREFIX
     @settings.enable_security               ||= false
     @settings.enable_slices                 ||= false
 
@@ -53,9 +55,10 @@ module LinkedData
     @settings.replace_url_prefix            ||= false
     @settings.id_url_prefix                 ||= DEFAULT_PREFIX
     @settings.queries_debug                 ||= false
-    @settings.enable_monitoring             ||= false
-    @settings.cube_host                     ||= 'localhost'
-    @settings.cube_port                     ||= 1180
+
+    # SPARQL logging
+    @settings.logging                       ||= false
+    @settings.log_file                      ||= './sparql.log'
 
     # Caching http
     @settings.enable_http_cache             ||= false
@@ -103,6 +106,33 @@ module LinkedData
     # number of threads to use when indexing a single ontology for search
     @settings.indexing_num_threads          ||= 1
 
+
+    require 'active_support/core_ext/hash/indifferent_access'
+
+    connectors_json_path = File.join(File.dirname(__FILE__), '..', '..', '..', 'config', 'projects-connectors.json')
+    if File.exist?(connectors_json_path)
+      begin
+        connectors_data = JSON.parse(File.read(connectors_json_path)).with_indifferent_access
+        if connectors_data[:available_sources]
+          connectors_data[:available_sources].each do |k, v|
+            connectors_data[:available_sources][k] = Object.const_get(v)
+          end
+        end
+        if connectors_data[:configs]
+          connectors_data[:configs].each do |_, config|
+            config[:search_fields]&.map!(&:to_sym)
+          end
+        end
+        @settings.connectors = connectors_data
+      rescue => e
+        @settings.connectors = { available_sources: {}, configs: {} }.with_indifferent_access
+      end
+    else
+      @settings.connectors = { available_sources: {}, configs: {} }.with_indifferent_access
+    end
+
+
+
     # Override defaults
     yield @settings, overide_connect_goo if block_given?
 
@@ -120,6 +150,7 @@ module LinkedData
     puts "(LD) >> Using property search server at #{@settings.property_search_server_url}"
     puts "(LD) >> Using HTTP Redis instance at #{@settings.http_redis_host}:#{@settings.http_redis_port}"
     puts "(LD) >> Using Goo Redis instance at #{@settings.goo_redis_host}:#{@settings.goo_redis_port}"
+    puts "(LD) >> Logging SPARQL queries to #{@settings.log_file}" if @settings.logging
 
     connect_goo unless overide_connect_goo
   end
@@ -147,14 +178,7 @@ module LinkedData
         conf.add_search_backend(:property, service: @settings.property_search_server_url)
         conf.add_redis_backend(host: @settings.goo_redis_host,
                                port: @settings.goo_redis_port)
-
-        if @settings.enable_monitoring
-          puts "(LD) >> Enable SPARQL monitoring with cube #{@settings.cube_host}:#{@settings.cube_port}"
-          conf.enable_cube do |opts|
-            opts[:host] = @settings.cube_host
-            opts[:port] = @settings.cube_port
-          end
-        end
+        conf.add_query_logger(enabled: @settings.logging, file: @settings.log_file)
       end
     rescue StandardError => e
       abort("EXITING: Cannot connect to triplestore and/or search server:\n  #{e}\n#{e.backtrace.join("\n")}")
@@ -187,7 +211,7 @@ module LinkedData
       conf.add_namespace(:adms, RDF::Vocabulary.new("http://www.w3.org/ns/adms#"))
       conf.add_namespace(:voaf, RDF::Vocabulary.new("http://purl.org/vocommons/voaf#"))
       conf.add_namespace(:dcat, RDF::Vocabulary.new("http://www.w3.org/ns/dcat#"))
-      conf.add_namespace(:mod, RDF::Vocabulary.new("http://www.isibang.ac.in/ns/mod#"))
+      conf.add_namespace(:mod, RDF::Vocabulary.new("https://w3id.org/mod#"))
       conf.add_namespace(:prov, RDF::Vocabulary.new("http://www.w3.org/ns/prov#"))
       conf.add_namespace(:cc, RDF::Vocabulary.new("http://creativecommons.org/ns#"))
       conf.add_namespace(:schema, RDF::Vocabulary.new("http://schema.org/"))
@@ -205,6 +229,7 @@ module LinkedData
       conf.add_namespace(:skosxl, RDF::Vocabulary.new("http://www.w3.org/2008/05/skos-xl#"))
       conf.add_namespace(:dcterms, RDF::Vocabulary.new("http://purl.org/dc/terms/"))
       conf.add_namespace(:uneskos, RDF::Vocabulary.new("http://purl.org/umu/uneskos#"))
+      conf.add_namespace(:frapo, RDF::Vocabulary.new("http://purl.org/cerif/frapo/"))
 
 
       conf.id_prefix = DEFAULT_PREFIX
