@@ -133,7 +133,7 @@ module LinkedData
           def user_from_keycloak_data(user_data)
             {
               email: user_data['email'],
-              username: user_data['preferred_username'],
+              username: user_data['email'].split('@').first,
               firstName: user_data['given_name'],
               lastName: user_data['family_name']
             }
