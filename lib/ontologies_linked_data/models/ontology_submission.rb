@@ -125,7 +125,8 @@ module LinkedData
       attribute :source, namespace: :dct, type: :list
       attribute :endpoint, namespace: :sd, type: %i[uri list],
                            default: ->(s) { default_sparql_endpoint(s) }
-      attribute :includedInDataCatalog, namespace: :schema, type: %i[list uri]
+      attribute :includedInDataCatalog, namespace: :schema, type: %i[list uri],
+                           default: ->(_s) { [RDF::URI.new("https://#{LinkedData.settings.ui_host}")] }
 
       # Relations
       attribute :hasPriorVersion, namespace: :omv, type: :uri
