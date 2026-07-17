@@ -32,7 +32,7 @@ module LinkedData
       attribute :passwordHash, enforce: [:existence]
       attribute :apikey, enforce: [:unique], :default => lambda {|x| SecureRandom.uuid}
       attribute :subscription, enforce: [:list, :subscription]
-      attribute :externalTools, enforce: [:list, :external_tool]
+      attribute :externalTools, enforce: [:list, :user_external_tool]
       attribute :customOntology, enforce: [:list, :ontology]
       attribute :resetToken
       attribute :resetTokenExpireTime
