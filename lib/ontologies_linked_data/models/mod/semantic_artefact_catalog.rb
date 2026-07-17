@@ -4,6 +4,7 @@ require 'ontologies_linked_data/models/project'
 require 'ontologies_linked_data/models/notes/note'
 require 'ontologies_linked_data/models/users/user'
 require 'ontologies_linked_data/models/agents/agent'
+require 'ontologies_linked_data/models/external_tool'
 require 'ontologies_linked_data/models/group'
 require 'ontologies_linked_data/models/slice'
 require 'ontologies_linked_data/models/mappings/mapping'
@@ -148,6 +149,7 @@ module LinkedData
                     LinkedData::Hypermedia::Link.new("submission_metadata", lambda {|s| "submission_metadata"}, nil),
                     LinkedData::Hypermedia::Link.new("users", lambda {|s| "users"}, LinkedData::Models::User.type_uri),
                     LinkedData::Hypermedia::Link.new("agents", lambda {|s| "agents"}, LinkedData::Models::Agent.type_uri),
+                    LinkedData::Hypermedia::Link.new("external_tools", lambda {|s| "external_tools"}, LinkedData::Models::ExternalTool.type_uri),
                     LinkedData::Hypermedia::Link.new("groups", lambda {|s| "groups"}, LinkedData::Models::Group.type_uri),
                     LinkedData::Hypermedia::Link.new("slices", lambda {|s| "slices"}, LinkedData::Models::Slice.type_uri),
                     LinkedData::Hypermedia::Link.new("mappings", lambda {|s| "mappings"}, LinkedData::Models::Mapping.type_uri.to_s),
