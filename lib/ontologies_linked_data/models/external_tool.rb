@@ -5,10 +5,9 @@ module LinkedData
       attribute :name, enforce: [:unique, :existence]
       attribute :title, enforce: [:existence]
       attribute :homepage, enforce: [:existence, :uri]
-      attribute :toolType, enforce: [:existence]
       attribute :created, enforce: [:date_time], :default => lambda { |record| DateTime.now }
 
-      serialize_default :name, :title, :homepage, :toolType, :created
+      serialize_default :name, :title, :homepage, :created
       cache_timeout 86400
     end
   end
