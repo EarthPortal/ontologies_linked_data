@@ -5,5 +5,17 @@ module LinkedData::Models::Users
     attribute :apikey, enforce: [:existence]
     attribute :user, inverse: {on: :user, attribute: :externalTools}
     embedded true
+
+    attr_accessor :show_apikey
+    serialize_never :show_apikey
+    serialize_filter lambda {|inst| show_apikey?(inst)}
+
+    def self.show_apikey?(inst)
+      if inst.show_apikey
+        attributes
+      else
+        attributes - [:apikey]
+      end
+    end
   end
 end
