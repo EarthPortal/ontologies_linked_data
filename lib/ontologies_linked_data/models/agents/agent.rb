@@ -16,12 +16,16 @@ module LinkedData
       attribute :identifiers, namespace: :adms, property: :identifier, enforce: %i[Identifier list unique_identifiers], fuzzy_search: true
       attribute :affiliations, enforce: %i[Agent list is_organization], namespace: :org, property: :memberOf
       attribute :creator, type: :user, enforce: [:existence]
+      attribute :created, namespace: :dcterms, enforce: [:date_time], default: lambda { |record| DateTime.now }
       embed :identifiers, :affiliations
       serialize_methods :usages, :keywords, :groups, :categories, :subjects, :relatedAgents, :affiliatedAgents
       embed_values affiliations: [:name, :agentType, :homepage, :acronym, :email, :identifiers]
 
       prevent_serialize_when_nested :usages, :affiliations, :keywords, :groups, :categories, :subjects, :relatedAgents, :affiliatedAgents
-          
+
+      # Hypermedia links
+      link_to LinkedData::Hypermedia::Link.new("ui", lambda { |a| "https://#{LinkedData.settings.ui_host}/agents/#{a.id.to_s.split('/').last}" }, self.uri_type)
+
       write_access :creator
       access_control_load :creator
 
