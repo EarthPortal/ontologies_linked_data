@@ -3,6 +3,7 @@ require 'securerandom'
 require 'ontologies_linked_data/models/users/authentication'
 require 'ontologies_linked_data/models/users/role'
 require 'ontologies_linked_data/models/users/subscription'
+require 'ontologies_linked_data/models/users/external_tool'
 require 'ontologies_linked_data/models/users/oauth_authentication'
 
 module LinkedData
@@ -31,13 +32,14 @@ module LinkedData
       attribute :passwordHash, enforce: [:existence]
       attribute :apikey, enforce: [:unique], :default => lambda {|x| SecureRandom.uuid}
       attribute :subscription, enforce: [:list, :subscription]
+      attribute :externalTools, enforce: [:list, :user_external_tool]
       attribute :customOntology, enforce: [:list, :ontology]
       attribute :resetToken
       attribute :resetTokenExpireTime
       attribute :provisionalClasses, inverse: { on: :provisional_class, attribute: :creator }
 
       # Hypermedia settings
-      embed :subscription
+      embed :subscription, :externalTools
       embed_values :role => [:role]
       serialize_default :username, :email, :role, :apikey
       serialize_never :passwordHash, :show_apikey, :resetToken, :resetTokenExpireTime
