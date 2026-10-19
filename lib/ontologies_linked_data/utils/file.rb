@@ -16,20 +16,22 @@ module LinkedData
       end
 
 
-      def self.zip?(file_path)
-        file_path = file_path.to_s
-        raise ArgumentError, "File path #{file_path} not found" unless File.exist? file_path
+      ZIP_MIME_TYPES = %w[application/zip application/x-zip-compressed].freeze
+      GZIP_MIME_TYPES = %w[application/gzip application/x-gzip].freeze
 
-        file_type = `file --mime -b #{Shellwords.escape(file_path)}`
-        file_type.split(';')[0] == 'application/zip'
+      def self.zip?(file_path)
+        ZIP_MIME_TYPES.include?(file_mime_type(file_path))
       end
 
       def self.gzip?(file_path)
+        GZIP_MIME_TYPES.include?(file_mime_type(file_path))
+      end
+
+      def self.file_mime_type(file_path)
         file_path = file_path.to_s
         raise ArgumentError, "File path #{file_path} not found" unless File.exist? file_path
 
-        file_type = `file --mime -b #{Shellwords.escape(file_path)}`
-        file_type.split(';')[0] == 'application/x-gzip'
+        `file --mime -b #{Shellwords.escape(file_path)}`.split(';')[0].strip
       end
 
       def self.files_from_zip(file_path)
@@ -95,15 +97,19 @@ module LinkedData
         zip_file_path
       end
 
-      def self.automaster?(path, format)
-        self.automaster(path, format) != nil
+      def self.automaster?(path, formats)
+        self.automaster(path, formats) != nil
       end
 
-      def self.automaster(path, format)
+      def self.automaster(path, formats)
         files = self.files_from_zip(path)
-        basename = File.basename(path, '.zip')
-        basename = File.basename(basename, format)
-        files.select {|f| File.basename(f, format).downcase.eql?(basename.downcase)}.first
+        zip_basename = File.basename(path, '.zip')
+        Array(formats).each do |format|
+          basename = File.basename(zip_basename, format)
+          match = files.find { |f| File.basename(f, format).downcase.eql?(basename.downcase) }
+          return match if match
+        end
+        nil
       end
 
       def self.repeated_names_in_file_list(file_list)
