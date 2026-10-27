@@ -22,7 +22,8 @@ class TestProject < LinkedData::TestCase
       :acronym => "GP",
       :creator => [@user],
       :created => DateTime.now,
-      :contacts => "Anonymous Funk, Anonymous Miller.",
+      :type => "FundedProject",
+      :keywords => ["keyword1", "keyword2"],
       :homePage => RDF::IRI.new("http://valid.uri.com"),
       :description => "This is a test project",
       :ontologyUsed => [@ont],
@@ -31,9 +32,11 @@ class TestProject < LinkedData::TestCase
 
   def teardown
     super
-    delete_goo_models(LinkedData::Models::User.where.all)
-    delete_goo_models(LinkedData::Models::Ontology.where.all)
+    # Delete projects first: Ontology#delete re-saves the projects that use it
     delete_goo_models(LinkedData::Models::Project.where.all)
+    delete_goo_models(LinkedData::Models::Agent.where.all)
+    delete_goo_models(LinkedData::Models::Ontology.where.all)
+    delete_goo_models(LinkedData::Models::User.where.all)
     @user = nil
     @ont = nil
     @project_params = nil
@@ -71,6 +74,7 @@ class TestProject < LinkedData::TestCase
     p.homePage = @project_params[:homePage]
     p.type = @project_params[:type]
     p.source = @project_params[:source]
+    p.keywords = @project_params[:keywords]
     p.ontologyUsed = @project_params[:ontologyUsed]
     assert p.valid?, p.errors
 
@@ -150,10 +154,11 @@ class TestProject < LinkedData::TestCase
   def test_project_type
     p = LinkedData::Models::Project.new
     assert (not p.valid?)
-    # Invalid type
-    p.type = "InvalidType"
-    assert (not p.valid?)
+    # type is required
     assert_equal(false, p.errors[:type].nil?)
+    # enforcedValues only lists the allowed types, goo does not validate them
+    assert_equal(%w[FundedProject NonFundedProject],
+                 LinkedData::Models::Project.attribute_settings(:type)[:enforcedValues])
     # Valid type
     p.type = "FundedProject"
     assert (not p.valid?) # Other attributes generate errors
@@ -163,10 +168,8 @@ class TestProject < LinkedData::TestCase
   def test_project_source
     p = LinkedData::Models::Project.new
     assert (not p.valid?)
-    # Invalid source
-    p.source = "INVALID_SOURCE"
-    assert (not p.valid?)
-    assert_equal(false, p.errors[:source].nil?)
+    # source is optional
+    assert_equal(true, p.errors[:source].nil?)
     # Valid source
     p.source = LinkedData::Models::Project.project_sources.first
     assert (not p.valid?) # Other attributes generate errors
@@ -189,6 +192,7 @@ class TestProject < LinkedData::TestCase
     p.description = @project_params[:description]
     p.type = @project_params[:type]
     p.source = @project_params[:source]
+    p.keywords = @project_params[:keywords]
     assert (not p.valid?)
     
     # Invalid creator and ontologyUsed types
@@ -229,25 +233,31 @@ class TestProject < LinkedData::TestCase
     p = LinkedData::Models::Project.new(@project_params)
     assert p.valid?, p.errors
     
-    # Create contact agent
+    # Create contact agent (contact is a list of saved agents)
     contact = LinkedData::Models::Agent.new
     contact.agentType = "person"
     contact.name = "John Doe"
     contact.email = "john@example.org"
-    p.contact = contact
-    
+    contact.creator = @user
+    contact.save
+    p.contact = [contact]
+
     # Create organization agent
     org = LinkedData::Models::Agent.new
     org.agentType = "organization"
     org.name = "Example University"
     org.homepage = "http://university.example.org"
+    org.creator = @user
+    org.save
     p.organization = org
-    
+
     # Create funder agent
     funder = LinkedData::Models::Agent.new
     funder.agentType = "organization"
     funder.name = "Funding Agency"
     funder.homepage = "http://funder.example.org"
+    funder.creator = @user
+    funder.save
     p.funder = funder
     
     assert p.valid?, p.errors
