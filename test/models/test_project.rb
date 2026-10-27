@@ -32,10 +32,11 @@ class TestProject < LinkedData::TestCase
 
   def teardown
     super
-    delete_goo_models(LinkedData::Models::User.where.all)
-    delete_goo_models(LinkedData::Models::Ontology.where.all)
+    # Delete projects first: Ontology#delete re-saves the projects that use it
     delete_goo_models(LinkedData::Models::Project.where.all)
     delete_goo_models(LinkedData::Models::Agent.where.all)
+    delete_goo_models(LinkedData::Models::Ontology.where.all)
+    delete_goo_models(LinkedData::Models::User.where.all)
     @user = nil
     @ont = nil
     @project_params = nil
