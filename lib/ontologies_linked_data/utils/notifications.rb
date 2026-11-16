@@ -30,27 +30,21 @@ module LinkedData
 
       def self.submission_processed(submission)
         submission.bring_remaining
+        # When a new version is parsed, the older ones are archived by running their processing again:
+        # no email for them, the administrators only get the email of the new version
+        return if submission.archived?
+
         ontology = submission.ontology
         ontology.bring(:name, :acronym)
         ontology.bring(:summaryOnly) if ontology.bring?(:summaryOnly)
         ontology_ui = LinkedData::Hypermedia.generate_links(ontology)['ui']
         ontology_location = "#{ontology_ui}?invalidate_cache=true"
 
-        if ontology.summaryOnly && !submission.archived?
-          subject, body = metadata_only_email(submission, ontology, ontology_ui, ontology_location)
-        elsif !submission.archived?
-          subject, body = file_email(submission, ontology, ontology_ui, ontology_location)
-        else
-          result = submission.ready? || submission.archived? ? 'Success' : 'Failure'
-          status = LinkedData::Models::SubmissionStatus.readable_statuses(submission.submissionStatus)
-          subject = "[#{LinkedData.settings.ui_name}] #{ontology.name} Parsing #{result}"
-          body = SUBMISSION_PROCESSED.gsub('%ontology_name%', ontology.name)
-                                     .gsub('%ontology_acronym%', ontology.acronym)
-                                     .gsub('%statuses%', status.join('<br/>'))
-                                     .gsub('%admin_email%', LinkedData.settings.email_sender)
-                                     .gsub('%ontology_location%', ontology_location)
-                                     .gsub('%ui_name%', LinkedData.settings.ui_name)
-        end
+        subject, body = if ontology.summaryOnly
+                          metadata_only_email(submission, ontology, ontology_ui, ontology_location)
+                        else
+                          file_email(submission, ontology, ontology_ui, ontology_location)
+                        end
 
         Notifier.notify_subscribed_separately subject, body, ontology, 'PROCESSING'
         Notifier.notify_mails_grouped subject, body, Notifier.support_mails + Notifier.admin_mails(ontology)
@@ -281,19 +275,6 @@ A new note was added to %ontologies% by <b>%username%</b>.<br/><br/>
 ----------------------------------------------------------------------------------<br/><br/>
 
 You can respond by visiting: <a href="%note_url%">%ui_name%</a>.<br/><br/>
-EOS
-
-      SUBMISSION_PROCESSED = <<EOS
-%ontology_name% (%ontology_acronym%) was processed for use in %ui_name%. Here are the results:
-<br><br>
-%statuses%
-<br><br>
-Please contact %admin_email% if you have questions.
-<br><br>
-The ontology can be <a href="%ontology_location%">browsed in %ui_name%</a>.
-<br><br>
-Thank you,<br>
-The %ui_name% Team
 EOS
 
       SUBMISSION_METADATA_ONLY = <<EOS
