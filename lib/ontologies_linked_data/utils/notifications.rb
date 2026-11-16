@@ -38,6 +38,8 @@ module LinkedData
 
         if ontology.summaryOnly && !submission.archived?
           subject, body = metadata_only_email(submission, ontology, ontology_ui, ontology_location)
+        elsif !submission.archived?
+          subject, body = file_email(submission, ontology, ontology_ui, ontology_location)
         else
           result = submission.ready? || submission.archived? ? 'Success' : 'Failure'
           status = LinkedData::Models::SubmissionStatus.readable_statuses(submission.submissionStatus)
@@ -64,10 +66,68 @@ module LinkedData
                                        .gsub('%new_version_url%', "#{ontology_ui}/submissions/new")
                                        .gsub('%ontology_name%', ontology.name)
                                        .gsub('%ontology_acronym%', ontology.acronym)
-                                       .gsub('%admin_email%', LinkedData.settings.email_sender)
+                                       .gsub('%admin_email%', support_contact)
                                        .gsub('%ontology_location%', ontology_location)
                                        .gsub('%ui_name%', ui_name)
         [subject, body]
+      end
+
+      # Submission with a file: the subject and the first sentence give the result, then the completed
+      # and the failed steps, and how many Recommended metadata fields are still empty.
+      #   success:     the file was parsed and no step failed
+      #   with_errors: the file was parsed (the ontology is available) but some steps failed
+      #   failed:      the file could not be parsed
+      def self.file_email(submission, ontology, ontology_ui, ontology_location)
+        statuses = Array(submission.submissionStatus)
+        completed_steps = status_labels(statuses.reject(&:error?))
+        failed_steps = status_labels(statuses.select(&:error?))
+        result = if !submission.ready? then :failed
+                 elsif failed_steps.any? then :with_errors
+                 else :success
+                 end
+
+        ui_name = LinkedData.settings.ui_name
+        intro = FILE_EMAIL_INTROS[result]
+        intro += PREVIOUS_VERSION_AVAILABLE if result == :failed && previous_version_available?(ontology, submission)
+        subject = "[#{ui_name}] #{ontology.name} (#{ontology.acronym}): #{FILE_EMAIL_SUBJECTS[result]}"
+        body = SUBMISSION_PROCESSED_FILE.gsub('%intro%', intro)
+                                        .gsub('%completed%', steps_list('Completed steps', completed_steps))
+                                        .gsub('%failed%', steps_list('Failed steps', failed_steps))
+                                        .gsub('%recommended%', recommended_paragraph(submission, ontology_ui))
+                                        .gsub('%new_version_url%', "#{ontology_ui}/submissions/new")
+                                        .gsub('%ontology_name%', ontology.name)
+                                        .gsub('%ontology_acronym%', ontology.acronym)
+                                        .gsub('%admin_email%', support_contact)
+                                        .gsub('%ontology_location%', ontology_location)
+                                        .gsub('%ui_name%', ui_name)
+        [subject, body]
+      end
+
+      # Readable labels of the statuses (SubmissionStatus::USER_READABLE), without the ignored ones
+      def self.status_labels(statuses)
+        statuses.empty? ? [] : LinkedData::Models::SubmissionStatus.readable_statuses(statuses)
+      end
+
+      # Title and one step per line; empty when there is no step
+      def self.steps_list(title, steps)
+        return '' if steps.empty?
+
+        "<b>#{title}:</b><br>\n#{steps.join("<br>\n")}\n<br><br>\n"
+      end
+
+      # True when an older version of the ontology was parsed: it stays the one shown in the portal
+      # (the older versions are archived only when the new one is parsed)
+      def self.previous_version_available?(ontology, submission)
+        latest_ready = ontology.latest_submission(status: :ready)
+        !latest_ready.nil? && latest_ready.id.to_s != submission.id.to_s
+      rescue StandardError
+        false
+      end
+
+      # Support address of the portal (admin_emails setting), else the sender address as before
+      def self.support_contact
+        support = Notifier.support_mails.first.to_s.strip
+        support.empty? ? LinkedData.settings.email_sender : support
       end
 
       # Number of empty Recommended fields with the link to the Edit page of the submission (its Recommended badges);
@@ -243,6 +303,34 @@ No ontology file was provided, so there was nothing to parse: this is expected f
 If you have the ontology file, you can add it by submitting a new version: <a href="%new_version_url%">Add a new version</a>.
 <br><br>
 %recommended%Please contact %admin_email% if you have questions.
+<br><br>
+The ontology can be <a href="%ontology_location%">browsed in %ui_name%</a>.
+<br><br>
+Thank you,<br>
+The %ui_name% Team
+EOS
+
+      FILE_EMAIL_SUBJECTS = {
+        success: 'processed successfully',
+        with_errors: 'processed with errors',
+        failed: 'processing failed'
+      }.freeze
+
+      FILE_EMAIL_INTROS = {
+        success: '%ontology_name% (%ontology_acronym%) was processed and is available in %ui_name%.',
+        with_errors: '%ontology_name% (%ontology_acronym%) was processed and is available in %ui_name%, ' \
+                     'but some steps failed (see below).',
+        failed: 'The ontology file of %ontology_name% (%ontology_acronym%) could not be processed. ' \
+                'Please check that the file is valid and in the format you selected, then submit a new version: ' \
+                '<a href="%new_version_url%">Add a new version</a>.'
+      }.freeze
+
+      PREVIOUS_VERSION_AVAILABLE = '<br>The previous version of the ontology stays available in %ui_name%.'.freeze
+
+      SUBMISSION_PROCESSED_FILE = <<EOS
+%intro%
+<br><br>
+%completed%%failed%%recommended%Please contact %admin_email% if you have questions.
 <br><br>
 The ontology can be <a href="%ontology_location%">browsed in %ui_name%</a>.
 <br><br>
