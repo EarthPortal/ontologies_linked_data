@@ -12,7 +12,7 @@ jobs:
         goo-slice: [ '100']
         ruby-version: [ '3.2' ]
         triplestore: [ 'fs', 'ag', 'vo', 'gb' ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
       - name: create config.rb file
