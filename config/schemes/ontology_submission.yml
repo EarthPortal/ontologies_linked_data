@@ -869,6 +869,18 @@ wasInvalidatedBy:
   extractedMetadata: true
   metadataMappings: [ "prov:wasInvalidatedBy" ]
 
+#Edit with
+editWith:
+  display: "methodology"
+  label: "Edit with"
+  helpText: "URL of the external editor used to edit this semantic artefact (e.g. OpenTheso, VocBench)."
+  example: "https://stage.earthportal.eu/opentheso"
+  description:
+    [
+      "The URL of the external editor used to edit the content of this semantic artefact.",
+    ]
+  extractedMetadata: false
+
 ### Object description properties
 
 #Object preferred label property
