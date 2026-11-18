@@ -115,11 +115,11 @@ class TestNotifications < LinkedData::TestCase
 
       first_user = subscription.user.first
       first_user.bring :email
-      assert mails.first.subject.include?("Parsing Success")
+      assert mails.first.subject.include?("processed successfully")
       assert_equal [first_user.email], mails.first.to
 
 
-      assert mails.last.subject.include?("Parsing Success")
+      assert mails.last.subject.include?("processed successfully")
       assert_equal (@@support_mails + admin_mails).uniq.sort, mails.last.to.sort
 
     ensure
