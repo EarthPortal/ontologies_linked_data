@@ -466,7 +466,8 @@ curatedOn:
   helpText: "Specifies the date this resource was curated. pav:curatedBy gives the agents that performed the curation."
   description: [ 
     "PAV: Specifies the date this resource was curated. pav:curatedBy gives the agents that performed the curation." ]
-  extractedMetadata: true
+  # Never taken from the ontology file: the portal fills it in at each save of the Edit page
+  extractedMetadata: false
   metadataMappings: [ "pav:curatedOn" ]
 
 #Submission date 
@@ -532,7 +533,9 @@ curatedBy:
   description: [ 
     "PAV: Specifies an agent specialist responsible for shaping the expression in an appropriate format. Often the primary agent responsible for ensuring the quality of the representation.", 
     "MOD: An ontology that is evaluated by an agent." ]
-  extractedMetadata: once
+  # Never taken from the ontology file nor copied from the previous version: the portal fills it in
+  # at each save of the Edit page (the person who saved)
+  extractedMetadata: false
   metadataMappings: [ "mod:evaluatedBy", "pav:curatedBy" ]
 
 #Translator
