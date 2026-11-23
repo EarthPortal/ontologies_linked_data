@@ -85,6 +85,7 @@ module LinkedData
         intro += PREVIOUS_VERSION_AVAILABLE if result == :failed && previous_version_available?(ontology, submission)
         subject = "[#{ui_name}] #{ontology.name} (#{ontology.acronym}): #{FILE_EMAIL_SUBJECTS[result]}"
         body = SUBMISSION_PROCESSED_FILE.gsub('%intro%', intro)
+                                        .gsub('%browse%', FILE_EMAIL_BROWSE[result])
                                         .gsub('%completed%', steps_list('Completed steps', completed_steps))
                                         .gsub('%failed%', steps_list('Failed steps', failed_steps))
                                         .gsub('%recommended%', recommended_paragraph(submission, ontology_ui))
@@ -97,16 +98,23 @@ module LinkedData
         [subject, body]
       end
 
-      # Readable labels of the statuses (SubmissionStatus::USER_READABLE), without the ignored ones
+      # One line per step: its readable label (SubmissionStatus::USER_READABLE, as in the portal) and what it means
+      # for the author (STEP_DESCRIPTIONS), in the order of the processing, without the ignored statuses.
+      # The codes come from the ids of the statuses: nothing to load from the triplestore.
       def self.status_labels(statuses)
-        statuses.empty? ? [] : LinkedData::Models::SubmissionStatus.readable_statuses(statuses)
+        status_model = LinkedData::Models::SubmissionStatus
+        codes = statuses.map(&:get_code_from_id).uniq - status_model::USER_IGNORE
+        codes.sort_by { |code| status_model::VALUES.index(code) || status_model::VALUES.size }.map do |code|
+          label = status_model::USER_READABLE[code] || code.capitalize
+          STEP_DESCRIPTIONS[code] ? "#{label}: #{STEP_DESCRIPTIONS[code]}" : label
+        end
       end
 
-      # Title and one step per line; empty when there is no step
+      # Title and one step per line (a bullet list); empty when there is no step
       def self.steps_list(title, steps)
         return '' if steps.empty?
 
-        "<b>#{title}:</b><br>\n#{steps.join("<br>\n")}\n<br><br>\n"
+        "<b>#{title}:</b><br>\n#{steps.map { |step| "&bull; #{step}" }.join("<br>\n")}\n<br><br>\n"
       end
 
       # True when an older version of the ontology was parsed: it stays the one shown in the portal
@@ -280,12 +288,13 @@ EOS
       SUBMISSION_METADATA_ONLY = <<EOS
 %ontology_name% (%ontology_acronym%) was saved in %ui_name% as a metadata-only submission.
 <br><br>
-No ontology file was provided, so there was nothing to parse: this is expected for a metadata-only submission.
+No ontology file was provided, so there was nothing to process: this is expected for a metadata-only submission.
 If you have the ontology file, you can add it by submitting a new version: <a href="%new_version_url%">Add a new version</a>.
+Before adding it, please make sure that you have the right to publish this ontology and that its license allows its publication in %ui_name%.
 <br><br>
-%recommended%Please contact %admin_email% if you have questions.
+%recommended%You can <a href="%ontology_location%">view its metadata in %ui_name%</a>.
 <br><br>
-The ontology can be <a href="%ontology_location%">browsed in %ui_name%</a>.
+If you encounter any problem, please contact %admin_email%.
 <br><br>
 Thank you,<br>
 The %ui_name% Team
@@ -308,12 +317,40 @@ EOS
 
       PREVIOUS_VERSION_AVAILABLE = '<br>The previous version of the ontology stays available in %ui_name%.'.freeze
 
+      # Link to the ontology page: "browsed" only when the file was processed (else it would look like a success)
+      FILE_EMAIL_BROWSE = {
+        success: 'The ontology can be <a href="%ontology_location%">browsed in %ui_name%</a>.',
+        with_errors: 'The ontology can be <a href="%ontology_location%">browsed in %ui_name%</a>.',
+        failed: 'You can <a href="%ontology_location%">check the ontology page in %ui_name%</a>.'
+      }.freeze
+
+      # What each processing step means for the author, shown after its label in the email (one line each)
+      STEP_DESCRIPTIONS = {
+        'RDF' => 'the file was read and its content loaded.',
+        'ERROR_RDF' => 'the file could not be read as an ontology in the selected format.',
+        'ERROR_TDV5' => 'the XLSX file does not follow the TDv5 template.',
+        'OBSOLETE' => 'the classes marked as obsolete were identified.',
+        'ERROR_OBSOLETE' => 'the obsolete classes could not be identified.',
+        'INDEXED' => 'the classes can be found with the search.',
+        'ERROR_INDEXED' => 'the classes can not be found with the search yet.',
+        'INDEXED_ALL_DATA' => 'all the content can be found with the search.',
+        'ERROR_INDEXED_ALL_DATA' => 'the content can not be fully searched yet.',
+        'INDEXED_PROPERTIES' => 'the properties can be found with the search.',
+        'ERROR_INDEXED_PROPERTIES' => 'the properties can not be found with the search yet.',
+        'METRICS' => 'the numbers of classes and properties were calculated.',
+        'ERROR_METRICS' => 'these numbers are not available yet.',
+        'ANNOTATOR' => 'the terms can be used by the Annotator.',
+        'ERROR_ANNOTATOR' => 'the terms can not be used by the Annotator yet.',
+        'DIFF' => 'the differences with the previous version were calculated.',
+        'ERROR_DIFF' => 'the differences with the previous version are not available.'
+      }.freeze
+
       SUBMISSION_PROCESSED_FILE = <<EOS
 %intro%
 <br><br>
-%completed%%failed%%recommended%Please contact %admin_email% if you have questions.
+%completed%%failed%%recommended%%browse%
 <br><br>
-The ontology can be <a href="%ontology_location%">browsed in %ui_name%</a>.
+If you encounter any problem, please contact %admin_email%.
 <br><br>
 Thank you,<br>
 The %ui_name% Team

@@ -122,6 +122,12 @@ class TestNotifications < LinkedData::TestCase
       assert mails.last.subject.include?("processed successfully")
       assert_equal (@@support_mails + admin_mails).uniq.sort, mails.last.to.sort
 
+      # each step with what it means for the author, and the contact for the problems
+      body = mails.last.body.raw_source
+      assert body.include?("Parsed successfully: the file was read and its content loaded."), body
+      assert body.include?("If you encounter any problem, please contact"), body
+      assert body.include?("browsed in"), body
+
     ensure
       ont.delete if ont
       subscription.delete if subscription
