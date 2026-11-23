@@ -9,7 +9,9 @@ module LinkedData
       include LinkedData::Security::AccessControl
 
       def save(*args)
-        write_permission_check(*args)
+        # curation: a curator can save the metadata of an ontology of another user (AccessControl#curation_allowed?);
+        # delete never allows it
+        write_permission_check(*args, curation: true)
         super(*args)
         self.cache_invalidate if LinkedData.settings.enable_http_cache
         self.cache_write if LinkedData.settings.enable_http_cache
@@ -202,6 +204,9 @@ module LinkedData
           end
 
           writable = reference_object.writable?(user)
+          # Curation (CURATOR role): a save of an ontology or a submission of another user, without changing
+          # its protected attributes (writable? is unchanged: it also decides who can delete, pull, read the logs)
+          writable ||= options_hash[:curation] && curation_allowed?(user, reference_object)
           raise LinkedData::Security::WriteAccessDeniedError, "Write access denied: #{reference_object.id}" unless writable
         end
       end

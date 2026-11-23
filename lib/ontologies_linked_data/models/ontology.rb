@@ -87,6 +87,9 @@ module LinkedData
       read_access :administeredBy, :acl
       write_access :administeredBy
       access_control_load :administeredBy, :acl, :viewingRestriction
+      # A curator can save the metadata of any ontology, but not change these attributes decided by its administrators:
+      # the administrators, the visibility (and the users of a private ontology), metadata-only (the location of the file)
+      curation_protected :administeredBy, :viewingRestriction, :acl, :summaryOnly
 
       # Cache
       cache_timeout 3600

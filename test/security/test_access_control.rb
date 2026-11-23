@@ -5,7 +5,7 @@ class TestAccessControl < LinkedData::TestCase
   def self.before_suite
     self.new("before_suite").delete_ontologies_and_submissions
 
-    @@usernames = ["user1", "user2", "user3", "admin"]
+    @@usernames = ["user1", "user2", "user3", "admin", "curator"]
     _delete_users
     @@usernames.each do |username|
       user = LinkedData::Models::User.new(
@@ -20,6 +20,9 @@ class TestAccessControl < LinkedData::TestCase
 
     @@admin.role = [LinkedData::Models::Users::Role.find(LinkedData::Models::Users::Role::ADMIN).first]
     @@admin.save
+
+    @@curator.role = [LinkedData::Models::Users::Role.find(LinkedData::Models::Users::Role::CURATOR).first]
+    @@curator.save
 
     onts = LinkedData::SampleData::Ontology.sample_owl_ontologies
 
@@ -113,5 +116,78 @@ class TestAccessControl < LinkedData::TestCase
     refute @@restricted_ont.writable?(@@user2)
     refute @@restricted_ont.writable?(@@user3)
     refute @@restricted_ont.writable?(@@user)
+  end
+
+  # Curation (CURATOR role): a curator can save the metadata of an ontology of another user...
+  def test_curator_saves_the_metadata_of_another_ontology
+    assert @@curator.curator?
+    refute @@ont.writable?(@@curator) # the general rule (delete, pull, logs) is unchanged
+
+    as_user(@@curator) do
+      ont = fresh_ontology(@@ont)
+      old_name = ont.name
+      ont.name = "#{old_name} (curated)"
+      ont.save
+      assert_equal "#{old_name} (curated)", fresh_ontology(@@ont).name
+
+      ont = fresh_ontology(@@ont)
+      ont.name = old_name
+      ont.save
+
+      sub = fresh_submission(@@ont)
+      sub.description = "Curated description"
+      sub.send(:write_permission_check, curation: true) # no error: a save is allowed
+    end
+  end
+
+  # ...but not delete it, and not change the attributes decided by its administrators
+  def test_curator_can_not_delete_nor_change_the_protected_attributes
+    as_user(@@curator) do
+      ont = fresh_ontology(@@ont)
+      assert_raises(LinkedData::Security::WriteAccessDeniedError) { ont.send(:write_permission_check) } # delete
+
+      { administeredBy: [@@curator], viewingRestriction: "private", acl: [@@curator], summaryOnly: true }.each do |attr, value|
+        ont = fresh_ontology(@@ont)
+        ont.send("#{attr}=", value)
+        assert_raises(LinkedData::Security::WriteAccessDeniedError, "#{attr} changed by a curator") { ont.save }
+      end
+
+      sub = fresh_submission(@@ont)
+      sub.pullLocation = RDF::URI.new("http://example.org/another_file.owl")
+      assert_raises(LinkedData::Security::WriteAccessDeniedError) { sub.send(:write_permission_check, curation: true) }
+      sub = fresh_submission(@@ont)
+      assert_raises(LinkedData::Security::WriteAccessDeniedError) { sub.send(:write_permission_check) } # delete
+    end
+  end
+
+  # A librarian who does not administer the ontology still can not save it
+  def test_librarian_can_not_save_another_ontology
+    refute @@user2.curator?
+    as_user(@@user2) do
+      ont = fresh_ontology(@@ont)
+      ont.name = "Not allowed"
+      assert_raises(LinkedData::Security::WriteAccessDeniedError) { ont.save }
+    end
+  end
+
+  private
+
+  # The user of the request (Base#write_permission_check reads Thread.current[:remote_user])
+  def as_user(user)
+    old_user = Thread.current[:remote_user]
+    Thread.current[:remote_user] = user
+    yield
+  ensure
+    Thread.current[:remote_user] = old_user
+  end
+
+  def fresh_ontology(ontology)
+    LinkedData::Models::Ontology.find(ontology.id).include(LinkedData::Models::Ontology.attributes).first
+  end
+
+  def fresh_submission(ontology)
+    submission = fresh_ontology(ontology).latest_submission(status: :any)
+    submission.bring_remaining
+    submission
   end
 end

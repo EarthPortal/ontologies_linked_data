@@ -214,6 +214,8 @@ module LinkedData
       # Access control
       read_restriction_based_on ->(sub) { sub.ontology }
       access_control_load ontology: %i[administeredBy acl viewingRestriction]
+      # A curator can save the metadata of any submission, but not change the location of its file
+      curation_protected :pullLocation, :uploadFilePath
 
       enable_indexing(:ontology_metadata)
 

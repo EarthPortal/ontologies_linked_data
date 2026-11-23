@@ -36,6 +36,17 @@ module LinkedData::Security
       allowed_user_ids.include?(user.id)
     end
 
+    # Curation (CURATOR role): a curator can save an ontology or a submission of another user (its metadata),
+    # but not change the attributes decided by its owners (the curation_protected setting of the class)
+    # and not delete it (only Base#save asks for it). Only the classes with curation_protected attributes.
+    def curation_allowed?(user, reference_object)
+      protected_attributes = (self.class.access_control_settings || {})[:curation_protected]
+      return false if protected_attributes.nil? || protected_attributes.empty?
+      return false unless user.respond_to?(:curator?) && user.curator?
+
+      protected_attributes.none? { |attr| curation_changed?(attr, reference_object) }
+    end
+
     def access_based_on?
       not self.class.access_control_settings[:read_restriction_based_on].empty?
     end
@@ -53,6 +64,22 @@ module LinkedData::Security
     end
 
     private
+
+    # The value to save compared with the stored one (reference_object: the object read again from the store
+    # when this one is modified); an attribute that is not loaded in this object has not been changed
+    def curation_changed?(attr, reference_object)
+      return false if reference_object.equal?(self)
+      return false unless loaded_attributes.include?(attr)
+
+      reference_object.bring(attr) if reference_object.bring?(attr)
+      curation_value(send(attr)) != curation_value(reference_object.send(attr))
+    end
+
+    # Comparable form of a value: the ids of the objects, the texts of the others, sorted
+    def curation_value(value)
+      values = value.is_a?(Array) ? value : [value]
+      values.map { |v| v.respond_to?(:id) && v.id ? v.id.to_s : v.to_s }.reject(&:empty?).sort
+    end
 
     def read_restricted_based_on?(based_on)
       if based_on.is_a?(Proc)
@@ -129,7 +156,9 @@ module LinkedData::Security
         :read_access,
         :write_access,
         :access_control_load,
-        :grant_access_to_all
+        :grant_access_to_all,
+        # attributes a curator can not change (#curation_allowed?)
+        :curation_protected
       ]
 
       ##
