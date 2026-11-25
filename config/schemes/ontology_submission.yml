@@ -254,16 +254,22 @@ hasLicense:
     "CC: A Work has a License.",
     "DC: Information about rights held in and over the resource." ]
   extractedMetadata: true
+  # Licenses proposed in the submission and Edit forms: SPDX licenses for content and data, not for software
+  # (https://spdx.org/licenses/, list 3.29). The value is the https address of the SPDX page: it answers 200,
+  # as checked by the FAIRness assessment (the http address is redirected). Not enforced: any license is accepted.
   enforcedValues: {
-    "https://creativecommons.org/licenses/by/4.0/": "CC Attribution 4.0 International",
-    "https://creativecommons.org/licenses/by/3.0/": "CC Attribution 3.0",
-    "https://creativecommons.org/publicdomain/zero/1.0/": "CC Public Domain Dedication",
-    "http://www.gnu.org/licenses/gpl-3.0": "GNU General Public License 3.0",
-    "http://www.gnu.org/licenses/gpl-2.0": "GNU General Public License 2.0",
-    "https://opensource.org/licenses/Artistic-2.0": "Open Source Artistic license 2.0",
-    "https://opensource.org/licenses/MIT": "MIT License",
-    "https://opensource.org/licenses/BSD-3-Clause": "BSD 3-Clause License",
-    "http://www.apache.org/licenses/LICENSE-2.0": "Apache License 2.0"
+    "https://spdx.org/licenses/CC0-1.0.html": "Creative Commons Zero v1.0 Universal (CC0-1.0)",
+    "https://spdx.org/licenses/CC-BY-4.0.html": "Creative Commons Attribution 4.0 International (CC-BY-4.0)",
+    "https://spdx.org/licenses/CC-BY-SA-4.0.html": "Creative Commons Attribution Share Alike 4.0 International (CC-BY-SA-4.0)",
+    "https://spdx.org/licenses/CC-BY-NC-4.0.html": "Creative Commons Attribution Non Commercial 4.0 International (CC-BY-NC-4.0)",
+    "https://spdx.org/licenses/CC-BY-NC-SA-4.0.html": "Creative Commons Attribution Non Commercial Share Alike 4.0 International (CC-BY-NC-SA-4.0)",
+    "https://spdx.org/licenses/CC-BY-ND-4.0.html": "Creative Commons Attribution No Derivatives 4.0 International (CC-BY-ND-4.0)",
+    "https://spdx.org/licenses/CC-BY-NC-ND-4.0.html": "Creative Commons Attribution Non Commercial No Derivatives 4.0 International (CC-BY-NC-ND-4.0)",
+    "https://spdx.org/licenses/CC-BY-3.0.html": "Creative Commons Attribution 3.0 Unported (CC-BY-3.0)",
+    "https://spdx.org/licenses/ODbL-1.0.html": "Open Data Commons Open Database License v1.0 (ODbL-1.0)",
+    "https://spdx.org/licenses/ODC-By-1.0.html": "Open Data Commons Attribution License v1.0 (ODC-By-1.0)",
+    "https://spdx.org/licenses/PDDL-1.0.html": "Open Data Commons Public Domain Dedication & License 1.0 (PDDL-1.0)",
+    "https://spdx.org/licenses/etalab-2.0.html": "Etalab Open License 2.0 (etalab-2.0)"
   }
   metadataMappings: [ "dc:rights", "dcterms:rights", "dcterms:license", "cc:license", "schema:license" ]
 
