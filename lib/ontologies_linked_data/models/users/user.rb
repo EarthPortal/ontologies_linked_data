@@ -143,6 +143,14 @@ module LinkedData
         role.map {|r| r.role}.include?(LinkedData::Models::Users::Role::ADMIN)
       end
 
+      # Same check as admin? for the CURATOR role
+      def curator?
+        return false unless persistent?
+        bring(role: [:role])
+        return false if role.empty?
+        role.map {|r| r.role}.include?(LinkedData::Models::Users::Role::CURATOR)
+      end
+
       def password=(new_password)
         @password = Password.create(new_password)
         set_passwordHash(@password)

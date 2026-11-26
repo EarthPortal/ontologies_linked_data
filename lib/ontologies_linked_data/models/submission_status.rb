@@ -18,11 +18,13 @@ module LinkedData
 
       USER_READABLE = {
         "RDF"                      => "Parsed successfully",
-        "RDF_ERROR"                => "Error parsing",
+        "ERROR_RDF"                => "Error parsing",
         "ERROR_TDV5"               => "Error validating the XLSX/TDv5 template",
+        "OBSOLETE"                 => "Obsolete classes processed",
+        "ERROR_OBSOLETE"           => "Error processing obsolete classes",
         "INDEXED"                  => "Indexed terms for search",
         "INDEXED_ALL_DATA"         => "Indexed all the data of the resource",
-        "ERROR_INDEXED_ALL_DATA"   => "Error indexeding all the data of the resource",
+        "ERROR_INDEXED_ALL_DATA"   => "Error indexing all the data of the resource",
         "ERROR_INDEXED"            => "Error indexing terms for search",
         "INDEXED_PROPERTIES"       => "Indexed properties for search",
         "ERROR_INDEXED_PROPERTIES" => "Error indexing properties for search",
